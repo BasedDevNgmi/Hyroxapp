@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/lib/auth'
+
 export interface WorkoutLog {
   id: string
   user_id: string
@@ -30,30 +29,40 @@ export interface WorkoutLogDraft {
   exercise_logs: ExerciseLogDraft[]
 }
 
+const LOGS_KEY = 'hyrox_workout_logs'
+const EXERCISE_LOGS_KEY = 'hyrox_exercise_logs'
 const DRAFT_KEY = (workoutId: string) => `hyrox_draft_${workoutId}`
 
+function getAllLogs(): WorkoutLog[] {
+  const stored = localStorage.getItem(LOGS_KEY)
+  return stored ? JSON.parse(stored) : []
+}
+
+function saveLogs(logs: WorkoutLog[]) {
+  localStorage.setItem(LOGS_KEY, JSON.stringify(logs))
+}
+
+function getAllExerciseLogs() {
+  const stored = localStorage.getItem(EXERCISE_LOGS_KEY)
+  return stored ? JSON.parse(stored) : []
+}
+
+function saveExerciseLogs(logs: unknown[]) {
+  localStorage.setItem(EXERCISE_LOGS_KEY, JSON.stringify(logs))
+}
+
 export function useWorkoutLog(workoutId: string) {
-  const { user } = useAuth()
   const [saving, setSaving] = useState(false)
   const [existingLog, setExistingLog] = useState<WorkoutLog | null>(null)
 
   useEffect(() => {
-    if (!user || !workoutId) return
-
-    const fetchExisting = async () => {
-      const { data } = await supabase
-        .from('workout_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('workout_id', workoutId)
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      setExistingLog(data as WorkoutLog | null)
-    }
-    fetchExisting()
-  }, [user, workoutId])
+    if (!workoutId) return
+    const logs = getAllLogs()
+    const found = logs
+      .filter(l => l.workout_id === workoutId)
+      .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())[0]
+    setExistingLog(found || null)
+  }, [workoutId])
 
   const saveDraft = (draft: WorkoutLogDraft) => {
     localStorage.setItem(DRAFT_KEY(workoutId), JSON.stringify(draft))
@@ -69,32 +78,26 @@ export function useWorkoutLog(workoutId: string) {
   }
 
   const saveWorkoutLog = async (draft: WorkoutLogDraft, startTime: Date) => {
-    if (!user) return { error: new Error('Not authenticated') }
-
     setSaving(true)
     const durationMinutes = Math.round((Date.now() - startTime.getTime()) / 60000)
 
-    const { data: workoutLogData, error: logError } = await supabase
-      .from('workout_logs')
-      .insert({
-        user_id: user.id,
-        workout_id: draft.workout_id,
-        knee_pain_level: draft.knee_pain_level,
-        overall_rpe: draft.overall_rpe,
-        notes: draft.notes || null,
-        duration_minutes: durationMinutes,
-      })
-      .select()
-      .single()
-
-    const workoutLog = workoutLogData as WorkoutLog | null
-
-    if (logError || !workoutLog) {
-      setSaving(false)
-      return { error: new Error(logError?.message || 'Failed to save workout') }
+    const workoutLog: WorkoutLog = {
+      id: crypto.randomUUID(),
+      user_id: 'local-user',
+      workout_id: draft.workout_id,
+      completed_at: new Date().toISOString(),
+      knee_pain_level: draft.knee_pain_level,
+      overall_rpe: draft.overall_rpe,
+      notes: draft.notes || null,
+      duration_minutes: durationMinutes,
     }
 
+    const logs = getAllLogs()
+    logs.unshift(workoutLog)
+    saveLogs(logs)
+
     const exerciseLogs = draft.exercise_logs.map(el => ({
+      id: crypto.randomUUID(),
       workout_log_id: workoutLog.id,
       workout_exercise_id: el.workout_exercise_id,
       set_number: el.set_number,
@@ -105,16 +108,8 @@ export function useWorkoutLog(workoutId: string) {
       notes: el.notes || null,
     }))
 
-    if (exerciseLogs.length > 0) {
-      const { error: elError } = await supabase
-        .from('exercise_logs')
-        .insert(exerciseLogs)
-
-      if (elError) {
-        setSaving(false)
-        return { error: new Error(elError.message) }
-      }
-    }
+    const existing = getAllExerciseLogs()
+    saveExerciseLogs([...existing, ...exerciseLogs])
 
     clearDraft()
     setSaving(false)
@@ -125,25 +120,13 @@ export function useWorkoutLog(workoutId: string) {
 }
 
 export function useWorkoutLogs() {
-  const { user } = useAuth()
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
-
-    const fetch = async () => {
-      const { data } = await supabase
-        .from('workout_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false })
-
-      setLogs(data || [])
-      setLoading(false)
-    }
-    fetch()
-  }, [user])
+    setLogs(getAllLogs())
+    setLoading(false)
+  }, [])
 
   return { logs, loading }
 }

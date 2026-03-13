@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/lib/auth'
+
 export interface Profile {
   id: string
   email: string
@@ -10,41 +9,37 @@ export interface Profile {
   updated_at: string
 }
 
+const PROFILE_KEY = 'hyrox_profile'
+
+const DEFAULT_PROFILE: Profile = {
+  id: 'local-user',
+  email: 'Wegener.max@gmail.com',
+  display_name: 'Max',
+  program_start_date: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+}
+
 export function useProfile() {
-  const { user } = useAuth()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
-
-    const fetch = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      setProfile(data)
-      setLoading(false)
+    const stored = localStorage.getItem(PROFILE_KEY)
+    if (stored) {
+      setProfile(JSON.parse(stored))
+    } else {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(DEFAULT_PROFILE))
+      setProfile(DEFAULT_PROFILE)
     }
-    fetch()
-  }, [user])
+    setLoading(false)
+  }, [])
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single()
-
-    if (!error && data) {
-      setProfile(data)
-    }
-    return { error }
+    const updated = { ...profile!, ...updates, updated_at: new Date().toISOString() }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(updated))
+    setProfile(updated)
+    return { error: null }
   }
 
   return { profile, loading, updateProfile }

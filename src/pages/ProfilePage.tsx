@@ -3,7 +3,6 @@ import { useAuth } from '@/lib/auth'
 import { useProfile } from '@/hooks/useProfile'
 import { useWorkoutLogs } from '@/hooks/useWorkoutLog'
 import {
-  LogOut,
   Calendar,
   Loader2,
   Download,
@@ -13,7 +12,7 @@ import {
 import { format } from 'date-fns'
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const { profile, loading, updateProfile } = useProfile()
   const { logs } = useWorkoutLogs()
   const [startDate, setStartDate] = useState('')
@@ -56,7 +55,7 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="text-sm text-muted-foreground mt-1">{user?.email}</p>
+        <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
       </div>
 
       {/* Stats */}
@@ -129,14 +128,6 @@ export default function ProfilePage() {
             <p className="text-sm font-medium">Export Data</p>
             <p className="text-xs text-muted-foreground">Download your training data as JSON</p>
           </div>
-        </button>
-
-        <button
-          onClick={signOut}
-          className="w-full flex items-center gap-3 p-4 bg-card rounded-xl border border-border hover:border-destructive/30 transition-colors"
-        >
-          <LogOut className="w-5 h-5 text-destructive" />
-          <p className="text-sm font-medium text-destructive">Sign Out</p>
         </button>
       </div>
 

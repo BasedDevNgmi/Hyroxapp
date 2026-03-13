@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/lib/auth'
 
 export interface ProgressPoint {
   date: string
@@ -14,84 +12,81 @@ export interface PRData {
   history: ProgressPoint[]
 }
 
+interface StoredExerciseLog {
+  workout_log_id: string
+  workout_exercise_id: string
+  weight_kg: number | null
+  time_seconds: number | null
+  completed: boolean
+}
+
+interface StoredWorkoutLog {
+  id: string
+  completed_at: string
+}
+
 export function useProgress() {
-  const { user } = useAuth()
   const [prData, setPrData] = useState<PRData[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    // Read exercise logs from localStorage
+    const exerciseLogsRaw = localStorage.getItem('hyrox_exercise_logs')
+    const workoutLogsRaw = localStorage.getItem('hyrox_workout_logs')
 
-    const fetch = async () => {
-      // Fetch exercise logs with exercise info for tracked exercises
-      const { data: logs } = await supabase
-        .from('exercise_logs')
-        .select(`
-          *,
-          workout_exercise:workout_exercises(
-            exercise:exercises(*)
-          ),
-          workout_log:workout_logs(completed_at, user_id)
-        `)
-        .eq('completed', true)
-
-      if (!logs) {
-        setLoading(false)
-        return
-      }
-
-      // Filter to user's logs and group by exercise
-      const exerciseMap = new Map<string, { name: string; points: ProgressPoint[]; unit: string }>()
-      const trackedExercises = ['Back Squat', 'Deadlift', 'Running (1km)', 'Deadmill Reverse Walk']
-
-      for (const log of logs) {
-        const exercise = (log.workout_exercise as Record<string, unknown>)?.exercise as { name: string } | undefined
-        const workoutLog = log.workout_log as { completed_at: string; user_id: string } | null
-
-        if (!exercise || !workoutLog || workoutLog.user_id !== user.id) continue
-        if (!trackedExercises.includes(exercise.name)) continue
-
-        const isTimeExercise = exercise.name === 'Running (1km)' || exercise.name === 'Deadmill Reverse Walk'
-        const value = isTimeExercise ? log.time_seconds : log.weight_kg
-        if (value == null) continue
-
-        if (!exerciseMap.has(exercise.name)) {
-          exerciseMap.set(exercise.name, {
-            name: exercise.name,
-            points: [],
-            unit: isTimeExercise ? 'seconds' : 'kg',
-          })
-        }
-
-        exerciseMap.get(exercise.name)!.points.push({
-          date: workoutLog.completed_at,
-          value: Number(value),
-        })
-      }
-
-      const result: PRData[] = []
-      for (const [, data] of exerciseMap) {
-        data.points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-        // For weight exercises: max value is PR. For time: min value is PR
-        const isTimeBased = data.unit === 'seconds'
-        const bestValue = isTimeBased
-          ? Math.min(...data.points.map(p => p.value))
-          : Math.max(...data.points.map(p => p.value))
-
-        result.push({
-          exercise_name: data.name,
-          current_value: bestValue,
-          unit: data.unit,
-          history: data.points,
-        })
-      }
-
-      setPrData(result)
+    if (!exerciseLogsRaw || !workoutLogsRaw) {
       setLoading(false)
+      return
     }
-    fetch()
-  }, [user])
+
+    const exerciseLogs: StoredExerciseLog[] = JSON.parse(exerciseLogsRaw)
+    const workoutLogs: StoredWorkoutLog[] = JSON.parse(workoutLogsRaw)
+    const logMap = new Map(workoutLogs.map(l => [l.id, l]))
+
+    // Group by workout_exercise_id and find weight/time trends
+    const exerciseMap = new Map<string, { points: ProgressPoint[]; unit: string }>()
+
+    for (const log of exerciseLogs) {
+      if (!log.completed) continue
+      const workoutLog = logMap.get(log.workout_log_id)
+      if (!workoutLog) continue
+
+      const value = log.weight_kg ?? log.time_seconds
+      if (value == null) continue
+
+      const unit = log.weight_kg != null ? 'kg' : 'seconds'
+      const key = log.workout_exercise_id
+
+      if (!exerciseMap.has(key)) {
+        exerciseMap.set(key, { points: [], unit })
+      }
+
+      exerciseMap.get(key)!.points.push({
+        date: workoutLog.completed_at,
+        value: Number(value),
+      })
+    }
+
+    const result: PRData[] = []
+    for (const [weId, data] of exerciseMap) {
+      data.points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+      const isTimeBased = data.unit === 'seconds'
+      const bestValue = isTimeBased
+        ? Math.min(...data.points.map(p => p.value))
+        : Math.max(...data.points.map(p => p.value))
+
+      result.push({
+        exercise_name: weId,
+        current_value: bestValue,
+        unit: data.unit,
+        history: data.points,
+      })
+    }
+
+    setPrData(result)
+    setLoading(false)
+  }, [])
 
   return { prData, loading }
 }

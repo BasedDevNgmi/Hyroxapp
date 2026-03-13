@@ -71,9 +71,9 @@ create table public.programs (
 
 alter table public.programs enable row level security;
 
-create policy "Programs are viewable by authenticated users"
+create policy "Programs are viewable by everyone"
   on public.programs for select
-  to authenticated
+  to anon, authenticated
   using (true);
 
 -- ============================================
@@ -89,9 +89,9 @@ create table public.exercises (
 
 alter table public.exercises enable row level security;
 
-create policy "Exercises are viewable by authenticated users"
+create policy "Exercises are viewable by everyone"
   on public.exercises for select
-  to authenticated
+  to anon, authenticated
   using (true);
 
 -- ============================================
@@ -110,9 +110,9 @@ create table public.workouts (
 
 alter table public.workouts enable row level security;
 
-create policy "Workouts are viewable by authenticated users"
+create policy "Workouts are viewable by everyone"
   on public.workouts for select
-  to authenticated
+  to anon, authenticated
   using (true);
 
 create index idx_workouts_week_day on public.workouts(week_number, day_number);
@@ -137,9 +137,9 @@ create table public.workout_exercises (
 
 alter table public.workout_exercises enable row level security;
 
-create policy "Workout exercises are viewable by authenticated users"
+create policy "Workout exercises are viewable by everyone"
   on public.workout_exercises for select
-  to authenticated
+  to anon, authenticated
   using (true);
 
 create index idx_workout_exercises_workout on public.workout_exercises(workout_id);

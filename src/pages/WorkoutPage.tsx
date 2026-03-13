@@ -113,7 +113,7 @@ export default function WorkoutPage() {
     )
 
     if (error) {
-      alert('Error saving: ' + error.message)
+      alert('Error saving: ' + String(error))
     } else {
       setShowComplete(true)
     }
