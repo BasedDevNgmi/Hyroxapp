@@ -145,6 +145,35 @@ const TRAINING_DAYS = new Set([1, 2, 3, 5, 6])
 
 export { DAY_NAMES, TRAINING_DAYS }
 
+export interface WorkoutSummary {
+  id: string
+  week_number: number
+  day_number: number
+  name: string
+  focus: string | null
+}
+
+export function useAllWorkouts() {
+  const [workouts, setWorkouts] = useState<WorkoutSummary[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase
+        .from('workouts')
+        .select('id, week_number, day_number, name, focus')
+        .order('week_number')
+        .order('day_number')
+
+      setWorkouts((data as WorkoutSummary[]) || [])
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  return { workouts, loading }
+}
+
 export function useTodayWorkout(programStartDate: string | null) {
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [weekNumber, setWeekNumber] = useState(1)

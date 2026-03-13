@@ -1,6 +1,7 @@
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProfile } from '@/hooks/useProfile'
-import { useTodayWorkout, DAY_NAMES } from '@/hooks/useProgram'
+import { useTodayWorkout, useAllWorkouts, DAY_NAMES } from '@/hooks/useProgram'
 import { useWorkoutLogs } from '@/hooks/useWorkoutLog'
 import {
   Dumbbell,
@@ -9,7 +10,55 @@ import {
   Calendar,
   Zap,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  format,
+  isSameMonth,
+  isToday,
+  addMonths,
+  subMonths,
+  addDays,
+} from 'date-fns'
+import type { WorkoutSummary } from '@/hooks/useProgram'
+
+// Map a calendar date to its week_number and day_number relative to program start
+function getWorkoutForDate(
+  date: Date,
+  programStart: Date,
+  workoutMap: Map<string, WorkoutSummary>
+): WorkoutSummary | null {
+  const diffMs = date.getTime() - programStart.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) return null
+
+  const weekNumber = Math.floor(diffDays / 7) + 1
+  if (weekNumber > 12) return null
+
+  // day_number = day of week: 1=Mon..7=Sun
+  const jsDay = date.getDay()
+  const dayOfWeek = jsDay === 0 ? 7 : jsDay
+
+  return workoutMap.get(`${weekNumber}-${dayOfWeek}`) || null
+}
+
+function getPhaseForWeek(week: number): { label: string; color: string } {
+  if (week <= 4) return { label: 'P1', color: 'bg-blue-500' }
+  if (week <= 8) return { label: 'P2', color: 'bg-amber-500' }
+  return { label: 'P3', color: 'bg-red-500' }
+}
+
+function isDeloadWeek(week: number) {
+  return week === 4 || week === 8 || week === 12
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -17,9 +66,26 @@ export default function DashboardPage() {
   const { workout, weekNumber, dayNumber, loading: workoutLoading } = useTodayWorkout(
     profile?.program_start_date ?? null
   )
+  const { workouts: allWorkouts, loading: allWorkoutsLoading } = useAllWorkouts()
   const { logs } = useWorkoutLogs()
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [calendarExpanded, setCalendarExpanded] = useState(true)
 
-  const loading = profileLoading || workoutLoading
+  const loading = profileLoading || workoutLoading || allWorkoutsLoading
+
+  // Build a map of "week-day" → workout for O(1) lookup
+  const workoutMap = useMemo(() => {
+    const map = new Map<string, WorkoutSummary>()
+    for (const w of allWorkouts) {
+      map.set(`${w.week_number}-${w.day_number}`, w)
+    }
+    return map
+  }, [allWorkouts])
+
+  // Set of completed workout IDs for quick lookup
+  const completedIds = useMemo(() => new Set(logs.map(l => l.workout_id)), [logs])
+
+  const todayCompleted = workout ? completedIds.has(workout.id) : false
 
   // Count completed workouts this week
   const weekLogs = logs.filter(log => {
@@ -33,7 +99,17 @@ export default function DashboardPage() {
     return logDate >= weekStart && logDate < weekEnd
   })
 
-  const todayCompleted = logs.some(l => l.workout_id === workout?.id)
+  // Calendar grid
+  const programStart = profile?.program_start_date ? new Date(profile.program_start_date) : null
+  const monthStart = startOfMonth(currentMonth)
+  const monthEnd = endOfMonth(currentMonth)
+  // Start week on Monday
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+  const calDays = eachDayOfInterval({ start: calStart, end: calEnd })
+
+  // Program date range for highlighting
+  const programEnd = programStart ? addDays(programStart, 12 * 7 - 1) : null
 
   if (loading) {
     return (
@@ -71,22 +147,150 @@ export default function DashboardPage() {
     'Phase 3: Compromised Running'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div>
         <p className="text-xs font-medium text-primary uppercase tracking-widest">{phaseLabel}</p>
         <h1 className="text-2xl font-bold mt-1">
           Week {weekNumber}, {DAY_NAMES[dayNumber] || 'Day ' + dayNumber}
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {workout?.name || 'Rest Day'}
-        </p>
+      </div>
+
+      {/* Calendar */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        {/* Calendar Header */}
+        <button
+          onClick={() => setCalendarExpanded(!calendarExpanded)}
+          className="w-full flex items-center justify-between p-3 hover:bg-background/50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">{format(currentMonth, 'MMMM yyyy')}</span>
+          </div>
+          {calendarExpanded ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
+        </button>
+
+        {calendarExpanded && (
+          <div className="px-3 pb-3">
+            {/* Month nav */}
+            <div className="flex items-center justify-between mb-2">
+              <button
+                onClick={() => setCurrentMonth(m => subMonths(m, 1))}
+                className="p-1.5 rounded-lg hover:bg-background transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => setCurrentMonth(new Date())}
+                className="text-xs text-primary font-medium px-2 py-1 rounded-md hover:bg-primary/10 transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setCurrentMonth(m => addMonths(m, 1))}
+                className="p-1.5 rounded-lg hover:bg-background transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 mb-1">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Day grid */}
+            <div className="grid grid-cols-7 gap-px">
+              {calDays.map(day => {
+                const inMonth = isSameMonth(day, currentMonth)
+                const today = isToday(day)
+                const wo = programStart ? getWorkoutForDate(day, programStart, workoutMap) : null
+                const isCompleted = wo ? completedIds.has(wo.id) : false
+                const inProgram = programStart && programEnd && day >= programStart && day <= programEnd
+                const diffFromStart = programStart ? Math.floor((day.getTime() - programStart.getTime()) / (1000 * 60 * 60 * 24)) : -1
+                const weekNum = diffFromStart >= 0 ? Math.floor(diffFromStart / 7) + 1 : 0
+                const deload = weekNum > 0 && weekNum <= 12 && isDeloadWeek(weekNum)
+                const phase = weekNum > 0 && weekNum <= 12 ? getPhaseForWeek(weekNum) : null
+
+                return (
+                  <button
+                    key={day.toISOString()}
+                    disabled={!wo}
+                    onClick={() => wo && navigate(`/workout/${wo.id}`)}
+                    className={`
+                      relative flex flex-col items-center justify-center py-1.5 min-h-[42px] rounded-lg transition-all
+                      ${!inMonth ? 'opacity-25' : ''}
+                      ${today ? 'ring-2 ring-primary ring-offset-1 ring-offset-card' : ''}
+                      ${wo ? 'hover:bg-primary/10 cursor-pointer' : 'cursor-default'}
+                      ${isCompleted ? 'bg-green-500/10' : ''}
+                      ${inProgram && !wo && inMonth ? 'bg-background/50' : ''}
+                    `}
+                  >
+                    <span className={`text-xs leading-none ${
+                      today ? 'font-bold text-primary' :
+                      wo ? 'font-semibold text-foreground' :
+                      'text-muted-foreground'
+                    }`}>
+                      {format(day, 'd')}
+                    </span>
+
+                    {wo && (
+                      <div className="flex items-center gap-0.5 mt-0.5">
+                        {isCompleted ? (
+                          <CheckCircle2 className="w-2.5 h-2.5 text-green-500" />
+                        ) : (
+                          <div className={`w-1.5 h-1.5 rounded-full ${phase?.color || 'bg-primary'}`} />
+                        )}
+                      </div>
+                    )}
+
+                    {deload && inMonth && wo && (
+                      <span className="text-[7px] text-muted-foreground leading-none">DL</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border">
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="text-[9px] text-muted-foreground">P1</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span className="text-[9px] text-muted-foreground">P2</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span className="text-[9px] text-muted-foreground">P3</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <CheckCircle2 className="w-2.5 h-2.5 text-green-500" />
+                <span className="text-[9px] text-muted-foreground">Done</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] text-muted-foreground font-medium">DL</span>
+                <span className="text-[9px] text-muted-foreground">Deload</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Week Progress */}
       <div className="bg-card rounded-2xl p-4 border border-border">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium">Week Progress</span>
+          <span className="text-sm font-medium">Week {weekNumber}</span>
           <span className="text-xs text-muted-foreground">{weekLogs.length}/5 workouts</span>
         </div>
         <div className="flex gap-1.5">
