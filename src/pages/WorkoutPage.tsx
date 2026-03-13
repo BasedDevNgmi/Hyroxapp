@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkout } from '@/hooks/useProgram'
 import { useWorkoutLog, type ExerciseLogDraft } from '@/hooks/useWorkoutLog'
@@ -11,7 +11,98 @@ import {
   Save,
   Trophy,
   AlertTriangle,
+  Timer,
+  Zap,
+  X,
 } from 'lucide-react'
+
+// --- Rest Timer ---
+function RestTimer({ seconds, onDismiss }: { seconds: number; onDismiss: () => void }) {
+  const [remaining, setRemaining] = useState(seconds)
+  const [running, setRunning] = useState(true)
+
+  useEffect(() => {
+    if (!running || remaining <= 0) return
+    const id = setInterval(() => setRemaining(r => r - 1), 1000)
+    return () => clearInterval(id)
+  }, [running, remaining])
+
+  const min = Math.floor(remaining / 60)
+  const sec = remaining % 60
+  const pct = seconds > 0 ? ((seconds - remaining) / seconds) * 100 : 100
+  const done = remaining <= 0
+
+  return (
+    <div className={`fixed inset-x-0 bottom-0 z-50 p-4 ${done ? 'bg-green-600' : 'bg-card border-t border-border'}`}>
+      <div className="max-w-lg mx-auto flex items-center gap-4">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <span className={`text-sm font-semibold ${done ? 'text-white' : ''}`}>
+              {done ? 'GO!' : 'Rest'}
+            </span>
+            <span className={`text-2xl font-mono font-bold tabular-nums ${done ? 'text-white' : 'text-primary'}`}>
+              {done ? '0:00' : `${min}:${String(sec).padStart(2, '0')}`}
+            </span>
+          </div>
+          {!done && (
+            <div className="h-1.5 bg-border rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${pct}%` }} />
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {!done && (
+            <button
+              onClick={() => setRunning(r => !r)}
+              className="px-3 py-2 bg-background border border-border rounded-lg text-xs font-medium"
+            >
+              {running ? 'Pause' : 'Resume'}
+            </button>
+          )}
+          <button
+            onClick={onDismiss}
+            className={`p-2 rounded-lg ${done ? 'bg-white/20 text-white' : 'bg-background border border-border text-muted-foreground'}`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Session Timer ---
+function SessionTimer({ startTime }: { startTime: Date }) {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime.getTime()) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [startTime])
+
+  const min = Math.floor(elapsed / 60)
+  const sec = elapsed % 60
+  return (
+    <span className="text-xs text-muted-foreground font-mono tabular-nums">
+      <Timer className="w-3 h-3 inline mr-1" />
+      {min}:{String(sec).padStart(2, '0')}
+    </span>
+  )
+}
+
+// --- Previous Performance ---
+function getPreviousPerformance(workoutExerciseId: string): { weight_kg: number | null; reps_completed: number | null; time_seconds: number | null } | null {
+  const raw = localStorage.getItem('hyrox_exercise_logs')
+  if (!raw) return null
+  const logs = JSON.parse(raw) as { workout_exercise_id: string; weight_kg: number | null; reps_completed: number | null; time_seconds: number | null; completed: boolean }[]
+  // Find the most recently logged completed set for this workout_exercise
+  const matching = logs.filter(l => l.workout_exercise_id === workoutExerciseId && l.completed)
+  if (matching.length === 0) return null
+  // Return the last one (most recent)
+  return matching[matching.length - 1]
+}
 
 export default function WorkoutPage() {
   const { workoutId } = useParams()
@@ -26,12 +117,11 @@ export default function WorkoutPage() {
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLogDraft[]>([])
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null)
   const [showComplete, setShowComplete] = useState(false)
+  const [restTimer, setRestTimer] = useState<number | null>(null)
 
-  // Initialize exercise logs from workout template
   useEffect(() => {
     if (!workout) return
 
-    // Try to load draft first
     const draft = loadDraft()
     if (draft) {
       setKneePain(draft.knee_pain_level)
@@ -62,7 +152,6 @@ export default function WorkoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout])
 
-  // Auto-save draft on changes
   useEffect(() => {
     if (!workoutId || exerciseLogs.length === 0) return
     const timeout = setTimeout(() => {
@@ -88,19 +177,57 @@ export default function WorkoutPage() {
     )
   }
 
-  const toggleSetComplete = (weId: string, setNum: number) => {
-    setExerciseLogs(prev =>
-      prev.map(el =>
+  const toggleSetComplete = useCallback((weId: string, setNum: number) => {
+    setExerciseLogs(prev => {
+      const updated = prev.map(el =>
         el.workout_exercise_id === weId && el.set_number === setNum
           ? { ...el, completed: !el.completed }
           : el
       )
+      // If marking complete and there's a rest_seconds, start rest timer
+      const justCompleted = updated.find(el => el.workout_exercise_id === weId && el.set_number === setNum)
+      if (justCompleted?.completed && workout) {
+        const we = workout.workout_exercises.find(w => w.id === weId)
+        if (we?.rest_seconds && we.rest_seconds > 0) {
+          setRestTimer(we.rest_seconds)
+        } else {
+          // Default 90s rest for strength exercises
+          const exercise = we?.exercise as { category: string } | undefined
+          if (exercise?.category === 'strength') {
+            setRestTimer(90)
+          }
+        }
+      }
+      return updated
+    })
+  }, [workout])
+
+  // Quick-fill: set all empty sets with prescribed values
+  const quickFill = (weId: string) => {
+    if (!workout) return
+    const we = workout.workout_exercises.find(w => w.id === weId)
+    if (!we) return
+    setExerciseLogs(prev =>
+      prev.map(el => {
+        if (el.workout_exercise_id !== weId) return el
+        const updates: Partial<ExerciseLogDraft> = {}
+        if (we.target_weight_kg && el.weight_kg === null) {
+          updates.weight_kg = Number(we.target_weight_kg)
+        }
+        if (we.reps && el.reps_completed === null) {
+          const parsed = parseInt(we.reps)
+          if (!isNaN(parsed)) updates.reps_completed = parsed
+        }
+        if (we.duration_seconds && el.time_seconds === null) {
+          updates.time_seconds = we.duration_seconds
+        }
+        return { ...el, ...updates }
+      })
     )
   }
 
   const handleSave = async () => {
     if (!workoutId) return
-
     const { error } = await saveWorkoutLog(
       {
         workout_id: workoutId,
@@ -111,7 +238,6 @@ export default function WorkoutPage() {
       },
       startTimeRef.current
     )
-
     if (error) {
       alert('Error saving: ' + String(error))
     } else {
@@ -138,6 +264,7 @@ export default function WorkoutPage() {
   if (showComplete) {
     const completedSets = exerciseLogs.filter(el => el.completed).length
     const totalSets = exerciseLogs.length
+    const elapsed = Math.floor((Date.now() - startTimeRef.current.getTime()) / 60000)
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] space-y-6 text-center">
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -146,7 +273,7 @@ export default function WorkoutPage() {
         <div>
           <h2 className="text-2xl font-bold">Workout Complete!</h2>
           <p className="text-muted-foreground mt-2">
-            {completedSets}/{totalSets} sets completed
+            {completedSets}/{totalSets} sets in {elapsed} min
           </p>
         </div>
         <div className="flex gap-4 text-center">
@@ -176,7 +303,7 @@ export default function WorkoutPage() {
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className={`space-y-4 ${restTimer !== null ? 'pb-28' : 'pb-8'}`}>
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-card rounded-lg transition-colors">
@@ -186,6 +313,7 @@ export default function WorkoutPage() {
           <h1 className="text-lg font-semibold">{workout.name}</h1>
           <p className="text-xs text-muted-foreground">{workout.focus}</p>
         </div>
+        <SessionTimer startTime={startTimeRef.current} />
       </div>
 
       {/* Progress Bar */}
@@ -234,6 +362,7 @@ export default function WorkoutPage() {
           const sets = exerciseLogs.filter(el => el.workout_exercise_id === we.id)
           const allDone = sets.every(s => s.completed)
           const isExpanded = expandedExercise === we.id
+          const prev = getPreviousPerformance(we.id)
 
           return (
             <div key={we.id} className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -269,11 +398,30 @@ export default function WorkoutPage() {
 
               {isExpanded && (
                 <div className="px-4 pb-4 space-y-2">
-                  {we.notes && (
-                    <p className="text-xs text-primary bg-primary/5 px-3 py-1.5 rounded-lg mb-2">
-                      {we.notes}
-                    </p>
-                  )}
+                  {/* Notes + Previous + Quick Fill */}
+                  <div className="space-y-1.5 mb-2">
+                    {we.notes && (
+                      <p className="text-xs text-primary bg-primary/5 px-3 py-1.5 rounded-lg">
+                        {we.notes}
+                      </p>
+                    )}
+
+                    {prev && (
+                      <p className="text-xs text-muted-foreground bg-background px-3 py-1.5 rounded-lg">
+                        Last: {prev.weight_kg ? `${prev.weight_kg}kg` : ''}{prev.reps_completed ? ` × ${prev.reps_completed}` : ''}{prev.time_seconds ? `${prev.time_seconds}s` : ''}
+                      </p>
+                    )}
+
+                    {(we.target_weight_kg || (we.reps && /^\d+$/.test(we.reps)) || we.duration_seconds) && (
+                      <button
+                        onClick={() => quickFill(we.id)}
+                        className="flex items-center gap-1 text-xs text-primary font-medium px-3 py-1.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors"
+                      >
+                        <Zap className="w-3 h-3" />
+                        Fill prescribed values
+                      </button>
+                    )}
+                  </div>
 
                   {/* Set Header */}
                   <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
@@ -297,6 +445,7 @@ export default function WorkoutPage() {
                       {we.duration_seconds ? (
                         <input
                           type="number"
+                          inputMode="numeric"
                           placeholder={String(we.duration_seconds)}
                           value={set.time_seconds ?? ''}
                           onChange={e =>
@@ -309,7 +458,8 @@ export default function WorkoutPage() {
                       ) : (
                         <input
                           type="number"
-                          placeholder={we.target_weight_kg ? `${we.target_weight_kg}kg` : 'kg'}
+                          inputMode="decimal"
+                          placeholder={we.target_weight_kg ? `${we.target_weight_kg}` : 'kg'}
                           value={set.weight_kg ?? ''}
                           onChange={e =>
                             updateSet(we.id, set.set_number, {
@@ -323,6 +473,7 @@ export default function WorkoutPage() {
                       {!we.duration_seconds && (
                         <input
                           type="number"
+                          inputMode="numeric"
                           placeholder={we.reps || ''}
                           value={set.reps_completed ?? ''}
                           onChange={e =>
@@ -394,6 +545,11 @@ export default function WorkoutPage() {
           </>
         )}
       </button>
+
+      {/* Rest Timer Overlay */}
+      {restTimer !== null && (
+        <RestTimer seconds={restTimer} onDismiss={() => setRestTimer(null)} />
+      )}
     </div>
   )
 }
