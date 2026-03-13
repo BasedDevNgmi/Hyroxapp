@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { usePrograms, useWorkoutsForWeek } from '@/hooks/useProgram'
 import { useWorkoutLogs } from '@/hooks/useWorkoutLog'
 import { useProfile } from '@/hooks/useProfile'
+import { DAY_NAMES } from '@/hooks/useProgram'
 import {
   ChevronRight,
   Loader2,
@@ -167,7 +168,7 @@ function WeekView({
       <div>
         <h1 className="text-2xl font-bold">Week {weekNumber}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {weekNumber <= 4 ? 'Foundation' : weekNumber <= 8 ? 'Build' : 'Peak'}
+          {weekNumber <= 4 ? 'Base & Bulletproofing' : weekNumber <= 8 ? 'Hyrox Strength & Threshold' : 'Compromised Running'}
           {weekNumber === currentWeek && ' · Current Week'}
         </p>
       </div>
@@ -185,7 +186,7 @@ function WeekView({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Day {workout.day_number}
+                      {DAY_NAMES[workout.day_number] || 'Day ' + workout.day_number}
                     </span>
                     {isCompleted && (
                       <CheckCircle2 className="w-3.5 h-3.5 text-success" />

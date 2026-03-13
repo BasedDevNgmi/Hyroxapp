@@ -253,7 +253,9 @@ export default function WorkoutPage() {
                     <p className="font-medium text-sm">{exercise.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {we.sets}×{we.reps || `${we.duration_seconds}s`}
-                      {we.tempo && ` @ ${we.tempo}`}
+                      {we.target_weight_kg && ` @ ${we.target_weight_kg}kg`}
+                      {we.distance_meters && ` · ${we.distance_meters}m`}
+                      {we.tempo && ` · ${we.tempo}`}
                       {we.rest_seconds && ` · ${we.rest_seconds}s rest`}
                     </p>
                   </div>
@@ -307,7 +309,7 @@ export default function WorkoutPage() {
                       ) : (
                         <input
                           type="number"
-                          placeholder="kg"
+                          placeholder={we.target_weight_kg ? `${we.target_weight_kg}kg` : 'kg'}
                           value={set.weight_kg ?? ''}
                           onChange={e =>
                             updateSet(we.id, set.set_number, {

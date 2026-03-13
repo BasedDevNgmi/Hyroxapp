@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useProfile } from '@/hooks/useProfile'
-import { useTodayWorkout } from '@/hooks/useProgram'
+import { useTodayWorkout, DAY_NAMES } from '@/hooks/useProgram'
 import { useWorkoutLogs } from '@/hooks/useWorkoutLog'
 import {
   Dumbbell,
@@ -66,9 +66,9 @@ export default function DashboardPage() {
   }
 
   const phaseLabel =
-    weekNumber <= 4 ? 'Phase 1: Foundation' :
-    weekNumber <= 8 ? 'Phase 2: Build' :
-    'Phase 3: Peak'
+    weekNumber <= 4 ? 'Phase 1: Base & Bulletproofing' :
+    weekNumber <= 8 ? 'Phase 2: Hyrox Strength & Threshold' :
+    'Phase 3: Compromised Running'
 
   return (
     <div className="space-y-6">
@@ -76,7 +76,7 @@ export default function DashboardPage() {
       <div>
         <p className="text-xs font-medium text-primary uppercase tracking-widest">{phaseLabel}</p>
         <h1 className="text-2xl font-bold mt-1">
-          Week {weekNumber}, Day {dayNumber}
+          Week {weekNumber}, {DAY_NAMES[dayNumber] || 'Day ' + dayNumber}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
           {workout?.name || 'Rest Day'}

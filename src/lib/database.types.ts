@@ -114,6 +114,8 @@ export interface Database {
           tempo: string | null
           rest_seconds: number | null
           duration_seconds: number | null
+          target_weight_kg: number | null
+          distance_meters: number | null
           notes: string | null
         }
         Insert: {
@@ -126,6 +128,8 @@ export interface Database {
           tempo?: string | null
           rest_seconds?: number | null
           duration_seconds?: number | null
+          target_weight_kg?: number | null
+          distance_meters?: number | null
           notes?: string | null
         }
         Update: {
@@ -137,6 +141,8 @@ export interface Database {
           tempo?: string | null
           rest_seconds?: number | null
           duration_seconds?: number | null
+          target_weight_kg?: number | null
+          distance_meters?: number | null
           notes?: string | null
         }
       }

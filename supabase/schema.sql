@@ -130,6 +130,8 @@ create table public.workout_exercises (
   tempo text,
   rest_seconds int,
   duration_seconds int,
+  target_weight_kg decimal,
+  distance_meters int,
   notes text
 );
 

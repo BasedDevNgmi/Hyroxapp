@@ -19,6 +19,8 @@ export interface WorkoutExercise {
   tempo: string | null
   rest_seconds: number | null
   duration_seconds: number | null
+  target_weight_kg: number | null
+  distance_meters: number | null
   notes: string | null
   exercise: Exercise
 }
@@ -137,6 +139,12 @@ export function useWorkout(workoutId: string | undefined) {
   return { workout, loading }
 }
 
+const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+// Training days: Mon(1), Tue(2), Wed(3), Fri(5), Sat(6). Thu(4) and Sun(7) are rest.
+const TRAINING_DAYS = new Set([1, 2, 3, 5, 6])
+
+export { DAY_NAMES, TRAINING_DAYS }
+
 export function useTodayWorkout(programStartDate: string | null) {
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [weekNumber, setWeekNumber] = useState(1)
@@ -160,11 +168,18 @@ export function useTodayWorkout(programStartDate: string | null) {
     }
 
     const currentWeek = Math.min(Math.floor(diffDays / 7) + 1, 12)
-    const dayOfWeek = (diffDays % 7) + 1
-    const trainingDay = dayOfWeek <= 5 ? dayOfWeek : null
+    // Use actual day of week: JS getDay() returns 0=Sun..6=Sat, convert to 1=Mon..7=Sun
+    const jsDay = now.getDay()
+    const dayOfWeek = jsDay === 0 ? 7 : jsDay
+    const isTrainingDay = TRAINING_DAYS.has(dayOfWeek)
 
     setWeekNumber(currentWeek)
-    setDayNumber(trainingDay || 1)
+    setDayNumber(dayOfWeek)
+
+    if (!isTrainingDay) {
+      setLoading(false)
+      return
+    }
 
     const fetchData = async () => {
       setLoading(true)
@@ -178,8 +193,8 @@ export function useTodayWorkout(programStartDate: string | null) {
           )
         `)
         .eq('week_number', currentWeek)
-        .eq('day_number', trainingDay || 1)
-        .single()
+        .eq('day_number', dayOfWeek)
+        .maybeSingle()
 
       if (data) {
         setWorkout(sortWorkoutExercises([data as Record<string, unknown>])[0])
