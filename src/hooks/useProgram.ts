@@ -64,7 +64,7 @@ export function usePrograms() {
 
 function sortWorkoutExercises(data: Record<string, unknown>[]): Workout[] {
   return data.map(w => {
-    const workout = w as Workout
+    const workout = w as unknown as Workout
     return {
       ...workout,
       workout_exercises: [...(workout.workout_exercises || [])].sort(
