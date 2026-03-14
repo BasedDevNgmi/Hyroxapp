@@ -335,7 +335,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Greeting Header */}
       <div className="space-y-1">
         <p className="text-xs font-medium text-primary uppercase tracking-widest">{phaseLabel}</p>
@@ -349,7 +349,7 @@ export default function DashboardPage() {
       {/* Streak + Week Progress Row */}
       <div className="flex gap-3">
         {/* Streak Counter */}
-        <div className="bg-card rounded-2xl p-4 border border-border flex flex-col items-center justify-center min-w-[90px]">
+        <div className="bg-card rounded-2xl p-5 border border-border flex flex-col items-center justify-center min-w-[90px]">
           <div className={`text-2xl mb-1 ${streak > 0 ? 'drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]' : ''}`}>
             <Flame className={`w-7 h-7 ${streak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
           </div>
@@ -362,12 +362,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Week Progress */}
-        <div className="bg-card rounded-2xl p-4 border border-border flex-1">
+        <div className="bg-card rounded-2xl p-5 border border-border flex-1">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium">Week {weekNumber}</span>
             <span className="text-xs text-muted-foreground">{weekLogs.length}/5 workouts</span>
           </div>
-          <div className="flex justify-between gap-2">
+          <div className="flex justify-between gap-3">
             {trainingDaysList.map(day => {
               const isDone = weekCompletedDays.has(day)
               const isCurrent = day === dayNumber
@@ -406,9 +406,9 @@ export default function DashboardPage() {
       {workout ? (
         <div className="bg-card rounded-2xl border border-border overflow-hidden relative">
           {/* Gradient accent line on left */}
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-green-400 to-emerald-600 rounded-l-2xl" />
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary via-amber-400 to-amber-600 rounded-l-2xl" />
 
-          <div className="p-4 pl-5 space-y-4">
+          <div className="p-5 pl-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-primary" />
@@ -437,7 +437,7 @@ export default function DashboardPage() {
             {/* Exercise Preview */}
             <div className="space-y-2">
               {workout.workout_exercises.slice(0, 4).map((we) => (
-                <div key={we.id} className="flex items-center gap-3 text-sm">
+                <div key={we.id} className="flex items-center gap-4 text-sm">
                   <Dumbbell className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground">
                     {(we.exercise as { name: string }).name}
@@ -484,7 +484,7 @@ export default function DashboardPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-card rounded-2xl p-8 border border-border text-center space-y-2">
+        <div className="bg-card rounded-2xl p-10 border border-border text-center space-y-2">
           <p className="text-lg font-medium text-foreground">Rest Day</p>
           <p className="text-muted-foreground text-sm">Recover and stretch. You deserve it.</p>
         </div>
@@ -495,7 +495,7 @@ export default function DashboardPage() {
         {/* Calendar Header */}
         <button
           onClick={() => setCalendarExpanded(!calendarExpanded)}
-          className="w-full flex items-center justify-between p-3 hover:bg-background/50 transition-colors"
+          className="w-full flex items-center justify-between p-4 hover:bg-background/50 transition-colors"
         >
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-primary" />
@@ -515,7 +515,7 @@ export default function DashboardPage() {
 
         {/* Collapsed: Current week row */}
         {!calendarExpanded && (
-          <div className="px-3 pb-3">
+          <div className="px-4 pb-4">
             {/* Day headers */}
             <div className="grid grid-cols-7 mb-1">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
@@ -532,7 +532,7 @@ export default function DashboardPage() {
 
         {/* Expanded: Full month view */}
         {calendarExpanded && (
-          <div className="px-3 pb-3">
+          <div className="px-4 pb-4">
             {/* Month nav */}
             <div className="flex items-center justify-between mb-2">
               <button

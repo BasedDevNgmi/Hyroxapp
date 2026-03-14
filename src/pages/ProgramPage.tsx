@@ -122,7 +122,7 @@ function WeekRow({
       {/* Header */}
       <button
         onClick={onToggle}
-        className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors rounded-xl ${
+        className={`w-full flex items-center justify-between px-5 py-4 transition-colors rounded-xl ${
           isCurrent ? 'bg-primary/5' : 'bg-card hover:bg-card/80'
         }`}
       >
@@ -192,7 +192,7 @@ function WeekRow({
         className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
         style={{ maxHeight: isExpanded ? `${height}px` : '0px' }}
       >
-        <div ref={contentRef} className="px-4 pb-4 pt-1 space-y-2">
+        <div ref={contentRef} className="px-5 pb-5 pt-2 space-y-3">
           {weekWorkouts
             .sort((a, b) => a.day_number - b.day_number)
             .map((workout) => {
@@ -201,7 +201,7 @@ function WeekRow({
                 <button
                   key={workout.id}
                   onClick={() => navigate(`/workout/${workout.id}`)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all active:scale-[0.98] ${
+                  className={`w-full flex items-center gap-4 p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${
                     done
                       ? 'bg-emerald-500/5 border-emerald-500/20'
                       : 'bg-background/50 border-border/40 hover:border-border'
@@ -209,7 +209,7 @@ function WeekRow({
                 >
                   {/* Day badge */}
                   <div
-                    className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold shrink-0 ${
+                    className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold shrink-0 ${
                       done
                         ? 'bg-emerald-500/15 text-emerald-400'
                         : 'bg-border/30 text-muted-foreground'
@@ -247,7 +247,7 @@ function WeekRow({
             })}
 
           {weekWorkouts.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-3">
+            <p className="text-xs text-muted-foreground text-center py-6">
               No workouts scheduled
             </p>
           )}
@@ -335,7 +335,7 @@ export default function ProgramPage() {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-8 pb-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Program</h1>
@@ -345,7 +345,7 @@ export default function ProgramPage() {
       </div>
 
       {/* ── Phase overview cards ─────────────────────────── */}
-      <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scrollbar-hide">
+      <div className="flex gap-4 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scrollbar-hide">
         {programs.map((program, i) => {
           const config = PHASE_CONFIG[i]
           if (!config) return null
@@ -357,7 +357,7 @@ export default function ProgramPage() {
             <button
               key={program.id}
               onClick={() => scrollToPhase(i)}
-              className={`shrink-0 snap-start w-[calc(33.333%-8px)] min-w-[140px] rounded-xl p-3 border text-left transition-all active:scale-[0.97] ${
+              className={`shrink-0 snap-start w-[calc(33.333%-8px)] min-w-[140px] rounded-xl p-4 border text-left transition-all active:scale-[0.97] ${
                 isCurrent ? 'ring-1' : ''
               }`}
               style={{
@@ -424,7 +424,7 @@ export default function ProgramPage() {
             ref={(el) => {
               phaseRefs.current[pi] = el
             }}
-            className="space-y-2"
+            className="space-y-3"
           >
             {/* Phase section header */}
             <div className="flex items-center gap-2 pt-2 pb-1">

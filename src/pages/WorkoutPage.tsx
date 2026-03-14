@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 
 // --- CSS-only Confetti ---
-const confettiColors = ['#d4ff00', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#6c5ce7', '#a29bfe']
+const confettiColors = ['#f5b731', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#6c5ce7', '#a29bfe']
 
 function ConfettiPiece({ index }: { index: number }) {
   const color = confettiColors[index % confettiColors.length]
@@ -66,9 +66,9 @@ function ConfettiOverlay() {
 // --- Category Badge ---
 function CategoryBadge({ category }: { category: string }) {
   const config: Record<string, { label: string; classes: string }> = {
-    strength: { label: 'STR', classes: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-    cardio: { label: 'CARDIO', classes: 'bg-green-500/20 text-green-400 border-green-500/30' },
-    hyrox_specific: { label: 'HYROX', classes: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+    strength: { label: 'STR', classes: 'bg-blue-500/15 text-blue-400 border-blue-500/25' },
+    cardio: { label: 'CARDIO', classes: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' },
+    hyrox_specific: { label: 'HYROX', classes: 'bg-primary/15 text-primary border-primary/25' },
   }
   const c = config[category]
   if (!c) return null
@@ -412,21 +412,21 @@ export default function WorkoutPage() {
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-6">
-          <div className="bg-card rounded-2xl p-4 border border-border text-center">
+          <div className="bg-card rounded-2xl p-5 border border-border text-center">
             <p className="text-xs text-muted-foreground mb-1">Sets</p>
             <p className="text-2xl font-bold text-primary">{completedSets}<span className="text-sm text-muted-foreground font-normal">/{totalSets}</span></p>
           </div>
-          <div className="bg-card rounded-2xl p-4 border border-border text-center">
+          <div className="bg-card rounded-2xl p-5 border border-border text-center">
             <p className="text-xs text-muted-foreground mb-1">Exercises</p>
             <p className="text-2xl font-bold text-primary">{completedExercises}<span className="text-sm text-muted-foreground font-normal">/{workout.workout_exercises.length}</span></p>
           </div>
-          <div className="bg-card rounded-2xl p-4 border border-border text-center">
+          <div className="bg-card rounded-2xl p-5 border border-border text-center">
             <p className="text-xs text-muted-foreground mb-1">Knee Pain</p>
             <p className={`text-2xl font-bold ${kneePain >= 7 ? 'text-destructive' : kneePain >= 4 ? 'text-yellow-500' : 'text-green-400'}`}>
               {kneePain}<span className="text-sm font-normal">/10</span>
             </p>
           </div>
-          <div className="bg-card rounded-2xl p-4 border border-border text-center">
+          <div className="bg-card rounded-2xl p-5 border border-border text-center">
             <p className="text-xs text-muted-foreground mb-1">RPE</p>
             <p className="text-2xl font-bold">{rpe}<span className="text-sm text-muted-foreground font-normal">/10</span></p>
           </div>
@@ -434,7 +434,7 @@ export default function WorkoutPage() {
 
         {/* Next workout teaser */}
         {nextWorkout && (
-          <div className="w-full max-w-sm bg-card rounded-2xl p-4 border border-primary/30 mb-6">
+          <div className="w-full max-w-sm bg-card rounded-2xl p-5 border border-primary/30 mb-6">
             <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-1">Up Next</p>
             <p className="text-sm font-medium">{nextWorkout.name}</p>
             {nextWorkout.focus && <p className="text-xs text-muted-foreground">{nextWorkout.focus}</p>}
@@ -456,9 +456,9 @@ export default function WorkoutPage() {
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
   return (
-    <div className={`space-y-4 ${restTimer !== null ? 'pb-32' : 'pb-8'}`}>
+    <div className={`space-y-5 ${restTimer !== null ? 'pb-32' : 'pb-8'}`}>
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-card rounded-lg transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -475,7 +475,7 @@ export default function WorkoutPage() {
           <span>Progress</span>
           <span>{completedCount}/{totalCount} sets</span>
         </div>
-        <div className="h-2 bg-border rounded-full overflow-hidden">
+        <div className="h-2.5 bg-border rounded-full overflow-hidden">
           <div
             className="h-full bg-primary rounded-full transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -484,7 +484,7 @@ export default function WorkoutPage() {
       </div>
 
       {/* Exercises */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {workout.workout_exercises.map(we => {
           const exercise = we.exercise as { name: string; category: string; description: string | null }
           const sets = exerciseLogs.filter(el => el.workout_exercise_id === we.id)
@@ -503,15 +503,15 @@ export default function WorkoutPage() {
             >
               <button
                 onClick={() => setExpandedExercise(isExpanded ? null : we.id)}
-                className="w-full p-4 flex items-center justify-between text-left"
+                className="w-full p-5 flex items-center justify-between text-left"
               >
                 <div className="flex items-center gap-3">
                   {allDone ? (
-                    <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
                       <Check className="w-4 h-4 text-green-400" />
                     </div>
                   ) : (
-                    <div className="w-7 h-7 rounded-full border-2 border-border flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full border-2 border-border flex items-center justify-center">
                       <span className="text-[10px] text-muted-foreground font-medium">
                         {sets.filter(s => s.completed).length}/{sets.length}
                       </span>
@@ -539,7 +539,7 @@ export default function WorkoutPage() {
               </button>
 
               {isExpanded && (
-                <div className="px-4 pb-4 space-y-2">
+                <div className="px-5 pb-5 space-y-3">
                   {/* Exercise Info Panel */}
                   {exercise.description && (
                     <div className="mb-2">
@@ -561,7 +561,7 @@ export default function WorkoutPage() {
                   {/* Notes + Previous + Quick Fill */}
                   <div className="space-y-1.5 mb-2">
                     {we.notes && (
-                      <p className="text-xs text-primary bg-primary/5 px-3 py-1.5 rounded-lg">
+                      <p className="text-xs text-primary bg-primary/8 px-3 py-1.5 rounded-lg">
                         {we.notes}
                       </p>
                     )}
@@ -584,7 +584,7 @@ export default function WorkoutPage() {
                   </div>
 
                   {/* Set Header */}
-                  <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
+                  <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
                     <span>Set</span>
                     <span>{we.duration_seconds ? 'Time (s)' : 'Weight'}</span>
                     <span>{we.duration_seconds ? '' : 'Reps'}</span>
@@ -598,7 +598,7 @@ export default function WorkoutPage() {
                     return (
                       <div
                         key={set.set_number}
-                        className={`grid grid-cols-[40px_1fr_1fr_40px] gap-2 items-center transition-opacity duration-200 ${
+                        className={`grid grid-cols-[40px_1fr_1fr_40px] gap-3 items-center transition-opacity duration-200 ${
                           set.completed ? 'opacity-60' : ''
                         }`}
                       >
@@ -617,7 +617,7 @@ export default function WorkoutPage() {
                                 time_seconds: e.target.value ? Number(e.target.value) : null,
                               })
                             }
-                            className="h-10 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
                           />
                         ) : (
                           <input
@@ -630,7 +630,7 @@ export default function WorkoutPage() {
                                 weight_kg: e.target.value ? Number(e.target.value) : null,
                               })
                             }
-                            className="h-10 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
                           />
                         )}
 
@@ -645,7 +645,7 @@ export default function WorkoutPage() {
                                 reps_completed: e.target.value ? Number(e.target.value) : null,
                               })
                             }
-                            className="h-10 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
                           />
                         )}
 
@@ -653,11 +653,11 @@ export default function WorkoutPage() {
 
                         <button
                           onClick={() => toggleSetComplete(we.id, set.set_number)}
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                          className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-200 ${
                             isAnimating ? 'scale-125' : 'scale-100'
                           } ${
                             set.completed
-                              ? 'bg-green-500/20 text-green-400'
+                              ? 'bg-primary/20 text-primary'
                               : 'bg-background border border-border text-muted-foreground hover:border-primary'
                           }`}
                           style={{ transitionProperty: 'transform, background-color, color, border-color' }}
@@ -675,7 +675,7 @@ export default function WorkoutPage() {
       </div>
 
       {/* Knee Pain Level - AFTER exercises */}
-      <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
+      <div className="bg-card rounded-2xl p-5 border border-border space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className={`w-4 h-4 ${kneePain >= 7 ? 'text-destructive' : kneePain >= 4 ? 'text-yellow-500' : 'text-green-400'}`} />
@@ -700,7 +700,7 @@ export default function WorkoutPage() {
       </div>
 
       {/* RPE & Notes */}
-      <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
+      <div className="bg-card rounded-2xl p-5 border border-border space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Session RPE</span>
           <span className="text-lg font-bold">{rpe}/10</span>
@@ -720,7 +720,7 @@ export default function WorkoutPage() {
         value={notes}
         onChange={e => setNotes(e.target.value)}
         rows={3}
-        className="w-full px-4 py-3 bg-card border border-border rounded-2xl text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+        className="w-full px-5 py-4 bg-card border border-border rounded-2xl text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
       />
 
       {/* Save Button */}

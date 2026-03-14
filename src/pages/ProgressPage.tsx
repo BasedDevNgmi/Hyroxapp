@@ -297,12 +297,12 @@ export default function ProgressPage() {
     isFuture: boolean
   ): string {
     if (isFuture) return 'bg-transparent'
-    if (!hasWorkout) return 'bg-zinc-800/60'
-    // Intensity based on RPE: low=dim green, high=bright neon green
-    if (rpe <= 4) return 'bg-[#3a5c00]'
-    if (rpe <= 6) return 'bg-[#6b9a00]'
-    if (rpe <= 8) return 'bg-[#a8d600]'
-    return 'bg-[#d4ff00]'
+    if (!hasWorkout) return 'bg-secondary/60'
+    // Intensity based on RPE: low=dim golden, high=bright golden
+    if (rpe <= 4) return 'bg-[#5c4a00]'
+    if (rpe <= 6) return 'bg-[#8a7000]'
+    if (rpe <= 8) return 'bg-[#c49b00]'
+    return 'bg-[#f5b731]'
   }
 
   const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -312,17 +312,17 @@ export default function ProgressPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 text-[#d4ff00] animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-8 pb-24">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Progress</h1>
-        <p className="text-sm text-zinc-400 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Progress</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Week {currentWeek} of 12
         </p>
       </div>
@@ -354,10 +354,10 @@ export default function ProgressPage() {
       </div>
 
       {/* ─── Activity Heatmap ───────────────────── */}
-      <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+      <div className="bg-card rounded-2xl p-5 border border-border">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar className="w-4 h-4 text-[#d4ff00]" />
-          <h3 className="text-sm font-semibold text-white">
+          <Calendar className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">
             Activity — Last 12 Weeks
           </h3>
         </div>
@@ -372,7 +372,7 @@ export default function ProgressPage() {
                   className="h-3 w-4 flex items-center justify-end"
                 >
                   {i % 2 === 0 ? (
-                    <span className="text-[9px] text-zinc-500 leading-none">
+                    <span className="text-[9px] text-muted-foreground leading-none">
                       {label}
                     </span>
                   ) : null}
@@ -386,7 +386,7 @@ export default function ProgressPage() {
                 {/* Week number label */}
                 <div className="h-4 flex items-center justify-center">
                   {wi % 3 === 0 ? (
-                    <span className="text-[9px] text-zinc-500">
+                    <span className="text-[9px] text-muted-foreground">
                       {format(week.days[0].date, 'M/d')}
                     </span>
                   ) : null}
@@ -404,7 +404,7 @@ export default function ProgressPage() {
                         ? ''
                         : day.hasWorkout
                         ? ''
-                        : 'border border-zinc-700/40'
+                        : 'border border-border/40'
                     }`}
                     title={`${format(day.date, 'EEE, MMM d')}${
                       day.hasWorkout ? ` — RPE ${day.rpe}` : ''
@@ -418,22 +418,22 @@ export default function ProgressPage() {
 
         {/* Legend */}
         <div className="flex items-center gap-2 mt-3 justify-end">
-          <span className="text-[9px] text-zinc-500">Less</span>
-          <div className="w-3 h-3 rounded-[2px] bg-zinc-800/60 border border-zinc-700/40" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#3a5c00]" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#6b9a00]" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#a8d600]" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#d4ff00]" />
-          <span className="text-[9px] text-zinc-500">More</span>
+          <span className="text-[9px] text-muted-foreground">Less</span>
+          <div className="w-3 h-3 rounded-[2px] bg-secondary/60 border border-border/40" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#5c4a00]" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#8a7000]" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#c49b00]" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#f5b731]" />
+          <span className="text-[9px] text-muted-foreground">More</span>
         </div>
       </div>
 
       {/* ─── Weight Progression ─────────────────── */}
       {weightProgressions.length > 0 && (
-        <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+        <div className="bg-card rounded-2xl p-5 border border-border">
           <div className="flex items-center gap-2 mb-4">
-            <ArrowUpRight className="w-4 h-4 text-[#d4ff00]" />
-            <h3 className="text-sm font-semibold text-white">
+            <ArrowUpRight className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
               Weight Progression
             </h3>
           </div>
@@ -442,35 +442,35 @@ export default function ProgressPage() {
             {weightProgressions.map((prog) => (
               <div
                 key={prog.name}
-                className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-b-0"
+                className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {prog.name}
                   </p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {prog.entries} sets logged
                   </p>
                 </div>
                 <div className="flex items-center gap-3 ml-3">
                   <div className="text-right">
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-muted-foreground">
                       {prog.firstWeight}kg
                     </span>
-                    <span className="text-xs text-zinc-600 mx-1.5">
+                    <span className="text-xs text-muted-foreground mx-1.5">
                       {'\u2192'}
                     </span>
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-semibold text-foreground">
                       {prog.latestWeight}kg
                     </span>
                   </div>
                   <div
                     className={`flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${
                       prog.change > 0
-                        ? 'text-[#d4ff00] bg-[#d4ff00]/10'
+                        ? 'text-primary bg-primary/10'
                         : prog.change < 0
                         ? 'text-red-400 bg-red-400/10'
-                        : 'text-zinc-400 bg-zinc-700/50'
+                        : 'text-muted-foreground bg-border/50'
                     }`}
                   >
                     {prog.change > 0 ? (
@@ -495,16 +495,16 @@ export default function ProgressPage() {
       {/* ─── Workout History ────────────────────── */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <Calendar className="w-4 h-4 text-[#d4ff00]" />
-          <h3 className="text-sm font-semibold text-white">
+          <Calendar className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">
             Recent Workouts
           </h3>
         </div>
 
         {sortedLogs.length === 0 ? (
-          <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800 text-center space-y-3">
-            <Dumbbell className="w-8 h-8 text-zinc-600 mx-auto" />
-            <p className="text-zinc-400 text-sm">
+          <div className="bg-card rounded-2xl p-8 border border-border text-center space-y-3">
+            <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto" />
+            <p className="text-muted-foreground text-sm">
               No workouts logged yet. Complete a workout to track your
               progress!
             </p>
@@ -517,21 +517,21 @@ export default function ProgressPage() {
                 <button
                   key={log.id}
                   onClick={() => navigate(`/workout/${log.workout_id}`)}
-                  className="w-full bg-zinc-900 rounded-xl border border-zinc-800 p-3 text-left hover:border-[#d4ff00]/30 transition-colors active:scale-[0.98]"
+                  className="w-full bg-card rounded-xl border border-border p-4 text-left hover:border-primary/30 transition-colors active:scale-[0.98]"
                 >
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5 flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-foreground truncate">
                         {wo?.name || 'Workout'}
                       </p>
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <span>
                           {format(
                             new Date(log.completed_at),
                             'EEE, MMM d'
                           )}
                         </span>
-                        <span className="text-zinc-700">{'\u00B7'}</span>
+                        <span className="text-border">{'\u00B7'}</span>
                         <span>
                           {formatDistanceToNow(
                             new Date(log.completed_at),
@@ -542,7 +542,7 @@ export default function ProgressPage() {
                     </div>
                     <div className="flex items-center gap-2.5 ml-2 shrink-0">
                       {log.duration_minutes != null && (
-                        <span className="text-xs text-zinc-400 tabular-nums">
+                        <span className="text-xs text-muted-foreground tabular-nums">
                           {log.duration_minutes}m
                         </span>
                       )}
@@ -560,11 +560,11 @@ export default function ProgressPage() {
                         </span>
                       )}
                       {log.overall_rpe != null && (
-                        <span className="text-[10px] font-semibold text-zinc-300 bg-zinc-800 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-semibold text-foreground/80 bg-secondary px-1.5 py-0.5 rounded">
                           RPE {log.overall_rpe}
                         </span>
                       )}
-                      <ChevronRight className="w-4 h-4 text-zinc-600" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                 </button>
@@ -575,30 +575,30 @@ export default function ProgressPage() {
       </div>
 
       {/* ─── Starting Benchmarks ────────────────── */}
-      <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+      <div className="bg-card rounded-2xl p-5 border border-border">
         <div className="flex items-center gap-2 mb-3">
-          <Weight className="w-4 h-4 text-[#d4ff00]" />
-          <h3 className="text-sm font-semibold text-white">
+          <Weight className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">
             Starting Benchmarks
           </h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-zinc-800/50 rounded-lg p-3">
-            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+          <div className="bg-secondary/50 rounded-lg p-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               Back Squat 1RM
             </p>
-            <p className="text-lg font-bold text-white">
+            <p className="text-lg font-bold text-foreground">
               105{' '}
-              <span className="text-sm font-normal text-zinc-400">kg</span>
+              <span className="text-sm font-normal text-muted-foreground">kg</span>
             </p>
           </div>
-          <div className="bg-zinc-800/50 rounded-lg p-3">
-            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+          <div className="bg-secondary/50 rounded-lg p-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               RDL 1RM
             </p>
-            <p className="text-lg font-bold text-white">
+            <p className="text-lg font-bold text-foreground">
               135{' '}
-              <span className="text-sm font-normal text-zinc-400">kg</span>
+              <span className="text-sm font-normal text-muted-foreground">kg</span>
             </p>
           </div>
         </div>
@@ -621,17 +621,17 @@ function StatCard({
   suffix?: string
 }) {
   return (
-    <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[#d4ff00]">{icon}</span>
-        <span className="text-[10px] uppercase tracking-wider text-zinc-500">
+    <div className="bg-card rounded-xl p-5 border border-border">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-primary">{icon}</span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
           {label}
         </span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <p className="text-2xl font-bold text-white">{value}</p>
+        <p className="text-2xl font-bold text-foreground">{value}</p>
         {suffix && (
-          <span className="text-xs text-zinc-500">{suffix}</span>
+          <span className="text-xs text-muted-foreground">{suffix}</span>
         )}
       </div>
     </div>

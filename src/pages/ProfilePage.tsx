@@ -52,7 +52,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Profile</h1>
         <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
@@ -60,18 +60,18 @@ export default function ProfilePage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-card rounded-xl p-3 border border-border text-center">
+        <div className="bg-card rounded-xl p-4 border border-border text-center">
           <p className="text-2xl font-bold text-primary">{logs.length}</p>
           <p className="text-[10px] text-muted-foreground uppercase mt-1">Workouts</p>
         </div>
-        <div className="bg-card rounded-xl p-3 border border-border text-center">
-          <p className="text-2xl font-bold">
+        <div className="bg-card rounded-xl p-4 border border-border text-center">
+          <p className="text-2xl font-bold text-primary">
             {logs.reduce((sum, l) => sum + (l.duration_minutes || 0), 0)}
           </p>
           <p className="text-[10px] text-muted-foreground uppercase mt-1">Minutes</p>
         </div>
-        <div className="bg-card rounded-xl p-3 border border-border text-center">
-          <p className="text-2xl font-bold">
+        <div className="bg-card rounded-xl p-4 border border-border text-center">
+          <p className="text-2xl font-bold text-primary">
             {logs.length > 0
               ? (logs.reduce((sum, l) => sum + (l.knee_pain_level || 0), 0) / logs.length).toFixed(1)
               : '—'
@@ -82,7 +82,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Program Start Date */}
-      <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
+      <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">Program Start Date</span>
@@ -99,12 +99,12 @@ export default function ProfilePage() {
             type="date"
             value={startDate || profile?.program_start_date || ''}
             onChange={e => setStartDate(e.target.value)}
-            className="flex-1 h-10 px-3 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 h-12 px-4 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
             onClick={handleSetStartDate}
             disabled={saving}
-            className="px-4 h-10 bg-primary text-primary-foreground rounded-lg text-sm font-medium flex items-center gap-1 disabled:opacity-50"
+            className="px-5 h-12 bg-primary text-primary-foreground rounded-lg text-sm font-medium flex items-center gap-1 disabled:opacity-50"
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -121,7 +121,7 @@ export default function ProfilePage() {
       <div className="space-y-2">
         <button
           onClick={handleExportData}
-          className="w-full flex items-center gap-3 p-4 bg-card rounded-xl border border-border hover:border-primary/20 transition-colors"
+          className="w-full flex items-center gap-4 p-5 bg-card rounded-xl border border-border hover:border-primary/20 transition-colors"
         >
           <Download className="w-5 h-5 text-muted-foreground" />
           <div className="text-left">
@@ -132,10 +132,10 @@ export default function ProfilePage() {
       </div>
 
       {/* App Info */}
-      <div className="text-center space-y-1 pt-4">
+      <div className="text-center space-y-1 pt-6">
         <div className="flex items-center justify-center gap-1">
           <Dumbbell className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground font-medium">HYROX TRACKER</span>
+          <span className="text-xs text-primary font-medium">HYROX TRACKER</span>
         </div>
         <p className="text-[10px] text-muted-foreground/60">v1.0.0 · Built for one</p>
       </div>
