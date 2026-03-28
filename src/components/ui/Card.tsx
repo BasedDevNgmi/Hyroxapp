@@ -11,11 +11,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-2xl border transition-all duration-300',
+          'rounded-lg border transition-all duration-300',
           {
-            'bg-card border-border shadow-md': variant === 'default',
-            'bg-card border-primary/30 shadow-[0_0_15px_rgba(250,204,21,0.1)]': variant === 'glow',
-            'bg-black/40 backdrop-blur-md border-white/5': variant === 'glass',
+            'bg-card border-border': variant === 'default',
+            'bg-card border-primary/30 neon-border': variant === 'glow',
+            'bg-[#060a10]/60 backdrop-blur-md border-primary/10': variant === 'glass',
             'bg-transparent border-border': variant === 'outline',
           },
           className

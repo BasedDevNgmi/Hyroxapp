@@ -12,13 +12,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Luxe Fitness',
-        short_name: 'Luxe',
-        description: 'Premium Fitness & Program Tracker',
+        name: 'GRIDRUNNER — Hybrid Athlete OS',
+        short_name: 'GRIDRUNNER',
+        description: '42-Week Hybrid Athlete Training Protocol',
         start_url: '/',
         display: 'standalone',
-        background_color: '#1a1914',
-        theme_color: '#1a1914',
+        background_color: '#060a10',
+        theme_color: '#060a10',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

@@ -13,10 +13,10 @@ import {
   Flame,
   Calendar,
   ChevronRight,
-  Dumbbell,
+  Crosshair,
   Activity,
-  Weight,
   ArrowUpRight,
+  Target,
 } from 'lucide-react'
 import {
   format,
@@ -27,7 +27,6 @@ import {
   differenceInCalendarWeeks,
 } from 'date-fns'
 
-// ── Types ─────────────────────────────────────────────
 interface ExerciseLog {
   id: string
   workout_log_id: string
@@ -50,9 +49,6 @@ interface WorkoutLogEntry {
   notes: string | null
 }
 
-// ── Helpers ───────────────────────────────────────────
-
-/** Build a map from workout_exercise_id -> exercise name */
 function buildExerciseNameMap(): Map<string, string> {
   const map = new Map<string, string>()
   for (const workout of allWorkouts) {
@@ -63,18 +59,13 @@ function buildExerciseNameMap(): Map<string, string> {
   return map
 }
 
-/** Build a map from workout_exercise_id -> workout_log_id -> completed_at date */
-function buildLogDateMap(
-  workoutLogs: WorkoutLogEntry[]
-): Map<string, string> {
+function buildLogDateMap(workoutLogs: WorkoutLogEntry[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const log of workoutLogs) {
     map.set(log.id, log.completed_at)
   }
   return map
 }
-
-// ── Component ─────────────────────────────────────────
 
 export default function ProgressPage() {
   const navigate = useNavigate()
@@ -84,59 +75,38 @@ export default function ProgressPage() {
 
   const loading = logsLoading || workoutsLoading
 
-  // Workout name lookup
   const workoutNames = useMemo(() => {
     const map = new Map<string, { name: string; focus: string | null }>()
-    for (const w of workouts) {
-      map.set(w.id, { name: w.name, focus: w.focus })
-    }
+    for (const w of workouts) map.set(w.id, { name: w.name, focus: w.focus })
     return map
   }, [workouts])
 
-  // Exercise name lookup
   const exerciseNameMap = useMemo(() => buildExerciseNameMap(), [])
 
-  // Exercise logs from localStorage
   const exerciseLogs: ExerciseLog[] = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('hyrox_exercise_logs') || '[]')
-    } catch {
-      return []
-    }
+    try { return JSON.parse(localStorage.getItem('hyrox_exercise_logs') || '[]') }
+    catch { return [] }
   }, [])
 
-  // Log date map for linking exercise logs to dates
-  const logDateMap = useMemo(
-    () => buildLogDateMap(logs as WorkoutLogEntry[]),
-    [logs]
-  )
+  const logDateMap = useMemo(() => buildLogDateMap(logs as WorkoutLogEntry[]), [logs])
 
-  // ── Stats ────────────────────────────────────────
   const totalWorkouts = logs.length
-  const totalMinutes = logs.reduce(
-    (sum, l) => sum + (l.duration_minutes || 0),
-    0
-  )
+  const totalMinutes = logs.reduce((sum, l) => sum + (l.duration_minutes || 0), 0)
   const totalHours = (totalMinutes / 60).toFixed(1)
 
   const avgRpe = useMemo(() => {
-    const withRpe = logs.filter((l) => l.overall_rpe != null)
+    const withRpe = logs.filter(l => l.overall_rpe != null)
     if (withRpe.length === 0) return null
-    const sum = withRpe.reduce((s, l) => s + (l.overall_rpe || 0), 0)
-    return (sum / withRpe.length).toFixed(1)
+    return (withRpe.reduce((s, l) => s + (l.overall_rpe || 0), 0) / withRpe.length).toFixed(1)
   }, [logs])
 
-  // Current program week
   let currentWeek = 1
   if (profile?.program_start_date) {
     const start = new Date(profile.program_start_date)
-    const diffDays = Math.floor(
-      (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)
-    )
+    const diffDays = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24))
     currentWeek = Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), 42)
   }
 
-  // Weekly streak: consecutive weeks (ending at current week) with >= 1 workout
   const weekStreak = useMemo(() => {
     if (!profile?.program_start_date) return 0
     const start = new Date(profile.program_start_date)
@@ -146,344 +116,184 @@ export default function ProgressPage() {
       weekStart.setDate(weekStart.getDate() + (w - 1) * 7)
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekEnd.getDate() + 7)
-      const hasLog = logs.some((l) => {
-        const d = new Date(l.completed_at)
-        return d >= weekStart && d < weekEnd
-      })
-      if (hasLog) streak++
+      if (logs.some(l => { const d = new Date(l.completed_at); return d >= weekStart && d < weekEnd })) streak++
       else break
     }
     return streak
   }, [logs, profile, currentWeek])
 
-  // ── Heatmap data (last 12 weeks) ────────────────
   const heatmapData = useMemo(() => {
     const today = new Date()
     const mondayThisWeek = startOfWeek(today, { weekStartsOn: 1 })
-    const startDate = subWeeks(mondayThisWeek, 11) // 12 weeks including current
+    const startDate = subWeeks(mondayThisWeek, 11)
 
-    // Build set of dates that have a completed workout
-    const completedDates = new Map<string, number>() // dateKey -> max RPE
+    const completedDates = new Map<string, number>()
     for (const log of logs) {
       const d = new Date(log.completed_at)
       const key = format(d, 'yyyy-MM-dd')
-      const rpe = log.overall_rpe || 5
-      completedDates.set(key, Math.max(completedDates.get(key) || 0, rpe))
+      completedDates.set(key, Math.max(completedDates.get(key) || 0, log.overall_rpe || 5))
     }
 
-    // Build 12 weeks x 7 days grid
-    const weeks: {
-      weekLabel: string
-      days: {
-        date: Date
-        dateKey: string
-        hasWorkout: boolean
-        rpe: number
-        isFuture: boolean
-      }[]
-    }[] = []
-
+    const weeks: { weekLabel: string; days: { date: Date; dateKey: string; hasWorkout: boolean; rpe: number; isFuture: boolean }[] }[] = []
     for (let w = 0; w < 12; w++) {
       const weekStart = addDays(startDate, w * 7)
-      const weekNum =
-        differenceInCalendarWeeks(weekStart, startDate, {
-          weekStartsOn: 1,
-        }) + 1
+      const weekNum = differenceInCalendarWeeks(weekStart, startDate, { weekStartsOn: 1 }) + 1
       const days = []
       for (let d = 0; d < 7; d++) {
         const date = addDays(weekStart, d)
         const dateKey = format(date, 'yyyy-MM-dd')
-        const isFuture = date > today
         days.push({
-          date,
-          dateKey,
+          date, dateKey,
           hasWorkout: completedDates.has(dateKey),
           rpe: completedDates.get(dateKey) || 0,
-          isFuture,
+          isFuture: date > today,
         })
       }
-      weeks.push({
-        weekLabel: `W${weekNum}`,
-        days,
-      })
+      weeks.push({ weekLabel: `W${weekNum}`, days })
     }
-
     return weeks
   }, [logs])
 
-  // ── Weight progression ──────────────────────────
   const weightProgressions = useMemo(() => {
-    // Group exercise logs by workout_exercise_id, include only those with weight_kg
-    const byExercise = new Map<
-      string,
-      { weight: number; date: string }[]
-    >()
-
+    const byExercise = new Map<string, { weight: number; date: string }[]>()
     for (const el of exerciseLogs) {
       if (el.weight_kg == null || el.weight_kg <= 0) continue
       const name = exerciseNameMap.get(el.workout_exercise_id)
       if (!name) continue
-
-      // Use exercise name as key to aggregate across weeks
       const dateStr = logDateMap.get(el.workout_log_id) || ''
-      if (!byExercise.has(name)) {
-        byExercise.set(name, [])
-      }
+      if (!byExercise.has(name)) byExercise.set(name, [])
       byExercise.get(name)!.push({ weight: el.weight_kg, date: dateStr })
     }
 
-    // For each exercise, compute first and latest max weight
-    const progressions: {
-      name: string
-      firstWeight: number
-      latestWeight: number
-      change: number
-      entries: number
-    }[] = []
-
+    const progressions: { name: string; firstWeight: number; latestWeight: number; change: number; entries: number }[] = []
     for (const [name, entries] of byExercise) {
       if (entries.length < 2) continue
-
-      // Sort by date
-      entries.sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-      )
-
-      // Get max weight from first session and last session
+      entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const firstDate = entries[0].date
       const lastDate = entries[entries.length - 1].date
-
-      // If all same date, skip
       if (firstDate === lastDate) continue
-
-      const firstSessionEntries = entries.filter((e) => e.date === firstDate)
-      const lastSessionEntries = entries.filter((e) => e.date === lastDate)
-
-      const firstMax = Math.max(...firstSessionEntries.map((e) => e.weight))
-      const lastMax = Math.max(...lastSessionEntries.map((e) => e.weight))
-
-      progressions.push({
-        name,
-        firstWeight: firstMax,
-        latestWeight: lastMax,
-        change: lastMax - firstMax,
-        entries: entries.length,
-      })
+      const firstMax = Math.max(...entries.filter(e => e.date === firstDate).map(e => e.weight))
+      const lastMax = Math.max(...entries.filter(e => e.date === lastDate).map(e => e.weight))
+      progressions.push({ name, firstWeight: firstMax, latestWeight: lastMax, change: lastMax - firstMax, entries: entries.length })
     }
-
-    // Sort by absolute change descending
-    progressions.sort(
-      (a, b) => Math.abs(b.change) - Math.abs(a.change)
-    )
-
+    progressions.sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     return progressions
   }, [exerciseLogs, exerciseNameMap, logDateMap])
 
-  // ── Sorted logs for history ─────────────────────
   const sortedLogs = useMemo(
-    () =>
-      [...logs].sort(
-        (a, b) =>
-          new Date(b.completed_at).getTime() -
-          new Date(a.completed_at).getTime()
-      ),
+    () => [...logs].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()),
     [logs]
   )
 
-  // ── Heatmap helpers ─────────────────────────────
-  function getCellColor(
-    hasWorkout: boolean,
-    rpe: number,
-    isFuture: boolean
-  ): string {
+  function getCellColor(hasWorkout: boolean, rpe: number, isFuture: boolean): string {
     if (isFuture) return 'bg-transparent'
-    if (!hasWorkout) return 'bg-secondary/60'
-    // Intensity based on RPE: low=dim golden, high=bright golden
-    if (rpe <= 4) return 'bg-[#5c4a00]'
-    if (rpe <= 6) return 'bg-[#8a7000]'
-    if (rpe <= 8) return 'bg-[#c49b00]'
-    return 'bg-[#f5b731]'
+    if (!hasWorkout) return 'bg-secondary/40'
+    if (rpe <= 4) return 'bg-primary/20'
+    if (rpe <= 6) return 'bg-primary/40'
+    if (rpe <= 8) return 'bg-primary/60'
+    return 'bg-primary/90'
   }
 
   const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-  // ── Render ──────────────────────────────────────
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 pb-24">
-      {/* Header */}
+    <div className="space-y-6 pb-24">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Progress</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Week {currentWeek} of 42
+        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">Data</h1>
+        <p className="text-[10px] font-mono text-muted-foreground mt-1 tracking-wider">
+          W{currentWeek} OF 42 // TELEMETRY
         </p>
       </div>
 
-      {/* ─── Hero Stats 2x2 ─────────────────────── */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={<Dumbbell className="w-4 h-4" />}
-          label="Workouts"
-          value={String(totalWorkouts)}
-        />
-        <StatCard
-          icon={<Timer className="w-4 h-4" />}
-          label="Training Time"
-          value={`${totalHours}h`}
-        />
-        <StatCard
-          icon={<Flame className="w-4 h-4" />}
-          label="Week Streak"
-          value={String(weekStreak)}
-          suffix={weekStreak === 1 ? 'week' : 'weeks'}
-        />
-        <StatCard
-          icon={<Activity className="w-4 h-4" />}
-          label="Avg RPE"
-          value={avgRpe || '--'}
-          suffix={avgRpe ? '/ 10' : ''}
-        />
+        <StatCard icon={<Crosshair className="w-4 h-4" />} label="Sessions" value={String(totalWorkouts)} />
+        <StatCard icon={<Timer className="w-4 h-4" />} label="Time" value={`${totalHours}h`} />
+        <StatCard icon={<Flame className="w-4 h-4" />} label="Streak" value={String(weekStreak)} suffix={weekStreak === 1 ? 'week' : 'weeks'} />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="Avg RPE" value={avgRpe || '--'} suffix={avgRpe ? '/ 10' : ''} />
       </div>
 
-      {/* ─── Activity Heatmap ───────────────────── */}
-      <div className="bg-card rounded-2xl p-5 border border-border">
-        <div className="flex items-center gap-2 mb-4">
-          <Calendar className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            Activity — Last 12 Weeks
-          </h3>
+      {/* Heatmap */}
+      <div className="bg-card rounded-lg p-4 border border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <Calendar className="w-3.5 h-3.5 text-primary" />
+          <h3 className="text-xs font-heading font-bold uppercase tracking-wider">Activity // 12 Weeks</h3>
         </div>
-
         <div className="overflow-x-auto">
           <div className="inline-flex gap-0.5">
-            {/* Day labels column */}
             <div className="flex flex-col gap-0.5 mr-1 pt-5">
               {DAY_LABELS.map((label, i) => (
-                <div
-                  key={i}
-                  className="h-3 w-4 flex items-center justify-end"
-                >
-                  {i % 2 === 0 ? (
-                    <span className="text-[9px] text-muted-foreground leading-none">
-                      {label}
-                    </span>
-                  ) : null}
+                <div key={i} className="h-3 w-4 flex items-center justify-end">
+                  {i % 2 === 0 ? <span className="text-[8px] font-mono text-muted-foreground">{label}</span> : null}
                 </div>
               ))}
             </div>
-
-            {/* Week columns */}
             {heatmapData.map((week, wi) => (
               <div key={wi} className="flex flex-col gap-0.5">
-                {/* Week number label */}
                 <div className="h-4 flex items-center justify-center">
-                  {wi % 3 === 0 ? (
-                    <span className="text-[9px] text-muted-foreground">
-                      {format(week.days[0].date, 'M/d')}
-                    </span>
-                  ) : null}
+                  {wi % 3 === 0 ? <span className="text-[8px] font-mono text-muted-foreground">{format(week.days[0].date, 'M/d')}</span> : null}
                 </div>
-                {/* Day cells */}
-                {week.days.map((day) => (
+                {week.days.map(day => (
                   <div
                     key={day.dateKey}
-                    className={`w-3 h-3 rounded-[2px] ${getCellColor(
-                      day.hasWorkout,
-                      day.rpe,
-                      day.isFuture
-                    )} ${
-                      day.isFuture
-                        ? ''
-                        : day.hasWorkout
-                        ? ''
-                        : 'border border-border/40'
+                    className={`w-3 h-3 rounded-[2px] ${getCellColor(day.hasWorkout, day.rpe, day.isFuture)} ${
+                      !day.isFuture && !day.hasWorkout ? 'border border-border/30' : ''
                     }`}
-                    title={`${format(day.date, 'EEE, MMM d')}${
-                      day.hasWorkout ? ` — RPE ${day.rpe}` : ''
-                    }`}
+                    title={`${format(day.date, 'EEE, MMM d')}${day.hasWorkout ? ` — RPE ${day.rpe}` : ''}`}
                   />
                 ))}
               </div>
             ))}
           </div>
         </div>
-
-        {/* Legend */}
         <div className="flex items-center gap-2 mt-3 justify-end">
-          <span className="text-[9px] text-muted-foreground">Less</span>
-          <div className="w-3 h-3 rounded-[2px] bg-secondary/60 border border-border/40" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#5c4a00]" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#8a7000]" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#c49b00]" />
-          <div className="w-3 h-3 rounded-[2px] bg-[#f5b731]" />
-          <span className="text-[9px] text-muted-foreground">More</span>
+          <span className="text-[8px] font-mono text-muted-foreground">Less</span>
+          <div className="w-3 h-3 rounded-[2px] bg-secondary/40 border border-border/30" />
+          <div className="w-3 h-3 rounded-[2px] bg-primary/20" />
+          <div className="w-3 h-3 rounded-[2px] bg-primary/40" />
+          <div className="w-3 h-3 rounded-[2px] bg-primary/60" />
+          <div className="w-3 h-3 rounded-[2px] bg-primary/90" />
+          <span className="text-[8px] font-mono text-muted-foreground">More</span>
         </div>
       </div>
 
-      {/* ─── Weight Progression ─────────────────── */}
+      {/* Weight Progression */}
       {weightProgressions.length > 0 && (
-        <div className="bg-card rounded-2xl p-5 border border-border">
-          <div className="flex items-center gap-2 mb-4">
-            <ArrowUpRight className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
-              Weight Progression
-            </h3>
+        <div className="bg-card rounded-lg p-4 border border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <ArrowUpRight className="w-3.5 h-3.5 text-primary" />
+            <h3 className="text-xs font-heading font-bold uppercase tracking-wider">Weight Progression</h3>
           </div>
-
-          <div className="space-y-3">
-            {weightProgressions.map((prog) => (
-              <div
-                key={prog.name}
-                className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
-              >
+          <div className="space-y-2">
+            {weightProgressions.map(prog => (
+              <div key={prog.name} className="flex items-center justify-between py-2 border-b border-border last:border-b-0">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {prog.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {prog.entries} sets logged
-                  </p>
+                  <p className="text-sm font-heading font-bold uppercase tracking-wider truncate">{prog.name}</p>
+                  <p className="text-[9px] font-mono text-muted-foreground">{prog.entries} sets</p>
                 </div>
                 <div className="flex items-center gap-3 ml-3">
                   <div className="text-right">
-                    <span className="text-xs text-muted-foreground">
-                      {prog.firstWeight}kg
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1.5">
-                      {'\u2192'}
-                    </span>
-                    <span className="text-sm font-semibold text-foreground">
-                      {prog.latestWeight}kg
-                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{prog.firstWeight}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground mx-1">{'\u2192'}</span>
+                    <span className="text-sm font-mono font-bold text-foreground">{prog.latestWeight}kg</span>
                   </div>
-                  <div
-                    className={`flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${
-                      prog.change > 0
-                        ? 'text-primary bg-primary/10'
-                        : prog.change < 0
-                        ? 'text-red-400 bg-red-400/10'
-                        : 'text-muted-foreground bg-border/50'
-                    }`}
-                  >
-                    {prog.change > 0 ? (
-                      <TrendingUp className="w-3 h-3" />
-                    ) : prog.change < 0 ? (
-                      <TrendingDown className="w-3 h-3" />
-                    ) : (
-                      <Minus className="w-3 h-3" />
-                    )}
-                    <span>
-                      {prog.change > 0 ? '+' : ''}
-                      {prog.change}kg
-                    </span>
+                  <div className={`flex items-center gap-0.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    prog.change > 0 ? 'text-primary bg-primary/10' :
+                    prog.change < 0 ? 'text-destructive bg-destructive/10' :
+                    'text-muted-foreground bg-border/50'
+                  }`}>
+                    {prog.change > 0 ? <TrendingUp className="w-3 h-3" /> :
+                     prog.change < 0 ? <TrendingDown className="w-3 h-3" /> :
+                     <Minus className="w-3 h-3" />}
+                    <span>{prog.change > 0 ? '+' : ''}{prog.change}kg</span>
                   </div>
                 </div>
               </div>
@@ -492,79 +302,55 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {/* ─── Workout History ────────────────────── */}
+      {/* Workout History */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <Calendar className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            Recent Workouts
-          </h3>
+          <Calendar className="w-3.5 h-3.5 text-primary" />
+          <h3 className="text-xs font-heading font-bold uppercase tracking-wider">Session Log</h3>
         </div>
-
         {sortedLogs.length === 0 ? (
-          <div className="bg-card rounded-2xl p-8 border border-border text-center space-y-3">
-            <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto" />
-            <p className="text-muted-foreground text-sm">
-              No workouts logged yet. Complete a workout to track your
-              progress!
+          <div className="bg-card rounded-lg p-8 border border-border text-center space-y-3">
+            <Crosshair className="w-8 h-8 text-muted-foreground mx-auto" />
+            <p className="text-muted-foreground text-xs font-mono">
+              // No sessions logged. Complete a protocol to begin tracking.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {(sortedLogs as WorkoutLogEntry[]).map((log) => {
+            {(sortedLogs as WorkoutLogEntry[]).map(log => {
               const wo = workoutNames.get(log.workout_id)
               return (
                 <button
                   key={log.id}
                   onClick={() => navigate(`/workout/${log.workout_id}`)}
-                  className="w-full bg-card rounded-xl border border-border p-4 text-left hover:border-primary/30 transition-colors active:scale-[0.98]"
+                  className="w-full bg-card rounded-lg border border-border p-3 text-left hover:border-primary/30 transition-colors active:scale-[0.98]"
                 >
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5 flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {wo?.name || 'Workout'}
-                      </p>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span>
-                          {format(
-                            new Date(log.completed_at),
-                            'EEE, MMM d'
-                          )}
-                        </span>
+                      <p className="text-sm font-heading font-bold uppercase tracking-wider truncate">{wo?.name || 'Session'}</p>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
+                        <span>{format(new Date(log.completed_at), 'EEE, MMM d')}</span>
                         <span className="text-border">{'\u00B7'}</span>
-                        <span>
-                          {formatDistanceToNow(
-                            new Date(log.completed_at),
-                            { addSuffix: true }
-                          )}
-                        </span>
+                        <span>{formatDistanceToNow(new Date(log.completed_at), { addSuffix: true })}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2.5 ml-2 shrink-0">
+                    <div className="flex items-center gap-2 ml-2 shrink-0">
                       {log.duration_minutes != null && (
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {log.duration_minutes}m
-                        </span>
+                        <span className="text-[10px] font-mono text-muted-foreground tabular-nums">{log.duration_minutes}m</span>
                       )}
                       {log.knee_pain_level != null && (
-                        <span
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                            log.knee_pain_level >= 7
-                              ? 'text-red-400 bg-red-400/10'
-                              : log.knee_pain_level >= 4
-                              ? 'text-yellow-400 bg-yellow-400/10'
-                              : 'text-emerald-400 bg-emerald-400/10'
-                          }`}
-                        >
-                          K:{log.knee_pain_level}
-                        </span>
+                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                          log.knee_pain_level >= 7 ? 'text-destructive bg-destructive/10' :
+                          log.knee_pain_level >= 4 ? 'text-amber-400 bg-amber-400/10' :
+                          'text-success bg-success/10'
+                        }`}>K:{log.knee_pain_level}</span>
                       )}
                       {log.overall_rpe != null && (
-                        <span className="text-[10px] font-semibold text-foreground/80 bg-secondary px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] font-mono font-bold text-foreground/80 bg-secondary px-1.5 py-0.5 rounded">
                           RPE {log.overall_rpe}
                         </span>
                       )}
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>
                   </div>
                 </button>
@@ -574,83 +360,43 @@ export default function ProgressPage() {
         )}
       </div>
 
-      {/* ─── 1RM Benchmarks ────────────────────── */}
-      <div className="bg-card rounded-2xl p-5 border border-border">
+      {/* 1RM */}
+      <div className="bg-card rounded-lg p-4 border border-border">
         <div className="flex items-center gap-2 mb-3">
-          <Weight className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            Current 1RM Values
-          </h3>
+          <Target className="w-3.5 h-3.5 text-primary" />
+          <h3 className="text-xs font-heading font-bold uppercase tracking-wider">1RM Values</h3>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-secondary/50 rounded-lg p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-              Squat
-            </p>
-            <p className="text-lg font-bold text-foreground">
-              {profile?.squat_1rm ?? '—'}{' '}
-              <span className="text-sm font-normal text-muted-foreground">kg</span>
-            </p>
-          </div>
-          <div className="bg-secondary/50 rounded-lg p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-              Deadlift
-            </p>
-            <p className="text-lg font-bold text-foreground">
-              {profile?.deadlift_1rm ?? '—'}{' '}
-              <span className="text-sm font-normal text-muted-foreground">kg</span>
-            </p>
-          </div>
-          <div className="bg-secondary/50 rounded-lg p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-              Bench Press
-            </p>
-            <p className="text-lg font-bold text-foreground">
-              {profile?.bench_1rm ?? '—'}{' '}
-              <span className="text-sm font-normal text-muted-foreground">kg</span>
-            </p>
-          </div>
-          <div className="bg-secondary/50 rounded-lg p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-              OHP
-            </p>
-            <p className="text-lg font-bold text-foreground">
-              {profile?.ohp_1rm ?? '—'}{' '}
-              <span className="text-sm font-normal text-muted-foreground">kg</span>
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Squat', value: profile?.squat_1rm },
+            { label: 'Deadlift', value: profile?.deadlift_1rm },
+            { label: 'Bench', value: profile?.bench_1rm },
+            { label: 'OHP', value: profile?.ohp_1rm },
+          ].map(item => (
+            <div key={item.label} className="bg-secondary/30 rounded-lg p-3 border border-border/50">
+              <p className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground mb-1">{item.label}</p>
+              <p className="text-lg font-mono font-bold text-foreground">
+                {item.value ?? '\u2014'}{' '}
+                <span className="text-xs font-normal text-muted-foreground">kg</span>
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   )
 }
 
-// ── StatCard sub-component ────────────────────────────
-
-function StatCard({
-  icon,
-  label,
-  value,
-  suffix,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  suffix?: string
-}) {
+function StatCard({ icon, label, value, suffix }: { icon: React.ReactNode; label: string; value: string; suffix?: string }) {
   return (
-    <div className="bg-card rounded-xl p-5 border border-border">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="bg-card rounded-lg p-4 border border-border">
+      <div className="flex items-center gap-2 mb-2">
         <span className="text-primary">{icon}</span>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{label}</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <p className="text-2xl font-bold text-foreground">{value}</p>
-        {suffix && (
-          <span className="text-xs text-muted-foreground">{suffix}</span>
-        )}
+        <p className="text-2xl font-mono font-bold text-foreground">{value}</p>
+        {suffix && <span className="text-[10px] font-mono text-muted-foreground">{suffix}</span>}
       </div>
     </div>
   )
