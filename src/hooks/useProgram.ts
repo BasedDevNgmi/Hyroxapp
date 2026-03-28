@@ -111,7 +111,7 @@ export function useTodayWorkout(programStartDate: string | null) {
       return
     }
 
-    const currentWeek = Math.min(Math.floor(diffDays / 7) + 1, 12)
+    const currentWeek = Math.min(Math.floor(diffDays / 7) + 1, 42)
     const jsDay = now.getDay()
     const dayOfWeek = jsDay === 0 ? 7 : jsDay
     const isTrainingDay = TRAINING_DAYS.has(dayOfWeek)

@@ -8,6 +8,7 @@ import {
   Download,
   Dumbbell,
   Check,
+  Weight,
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -18,6 +19,24 @@ export default function ProfilePage() {
   const [startDate, setStartDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [rmSaving, setRmSaving] = useState(false)
+  const [rmSaved, setRmSaved] = useState(false)
+
+  // Local 1RM state
+  const [squat1rm, setSquat1rm] = useState<string>('')
+  const [dl1rm, setDl1rm] = useState<string>('')
+  const [bench1rm, setBench1rm] = useState<string>('')
+  const [ohp1rm, setOhp1rm] = useState<string>('')
+  const [rmInitialized, setRmInitialized] = useState(false)
+
+  // Initialize 1RM values from profile once loaded
+  if (profile && !rmInitialized) {
+    setSquat1rm(profile.squat_1rm?.toString() ?? '')
+    setDl1rm(profile.deadlift_1rm?.toString() ?? '')
+    setBench1rm(profile.bench_1rm?.toString() ?? '')
+    setOhp1rm(profile.ohp_1rm?.toString() ?? '')
+    setRmInitialized(true)
+  }
 
   const handleSetStartDate = async () => {
     if (!startDate) return
@@ -26,6 +45,19 @@ export default function ProfilePage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleSave1RM = async () => {
+    setRmSaving(true)
+    await updateProfile({
+      squat_1rm: squat1rm ? Number(squat1rm) : null,
+      deadlift_1rm: dl1rm ? Number(dl1rm) : null,
+      bench_1rm: bench1rm ? Number(bench1rm) : null,
+      ohp_1rm: ohp1rm ? Number(ohp1rm) : null,
+    })
+    setRmSaving(false)
+    setRmSaved(true)
+    setTimeout(() => setRmSaved(false), 2000)
   }
 
   const handleExportData = () => {
@@ -52,7 +84,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24">
       <div>
         <h1 className="text-2xl font-bold">Profile</h1>
         <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
@@ -79,6 +111,90 @@ export default function ProfilePage() {
           </p>
           <p className="text-[10px] text-muted-foreground uppercase mt-1">Avg Knee</p>
         </div>
+      </div>
+
+      {/* 1RM Values */}
+      <div className="bg-card rounded-2xl p-5 border border-border space-y-4">
+        <div className="flex items-center gap-2">
+          <Weight className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium">1RM Values</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Used to calculate working weights throughout the program.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Squat</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={squat1rm}
+                onChange={e => setSquat1rm(e.target.value)}
+                placeholder="105"
+                className="flex-1 h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-xs text-muted-foreground">kg</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Deadlift</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={dl1rm}
+                onChange={e => setDl1rm(e.target.value)}
+                placeholder="135"
+                className="flex-1 h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-xs text-muted-foreground">kg</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">Bench Press</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={bench1rm}
+                onChange={e => setBench1rm(e.target.value)}
+                placeholder="—"
+                className="flex-1 h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-xs text-muted-foreground">kg</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">OHP</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={ohp1rm}
+                onChange={e => setOhp1rm(e.target.value)}
+                placeholder="—"
+                className="flex-1 h-12 px-4 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-xs text-muted-foreground">kg</span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave1RM}
+          disabled={rmSaving}
+          className="w-full h-12 bg-primary text-primary-foreground rounded-lg text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+        >
+          {rmSaving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : rmSaved ? (
+            <><Check className="w-4 h-4" /> Saved</>
+          ) : (
+            'Save 1RM Values'
+          )}
+        </button>
       </div>
 
       {/* Program Start Date */}
@@ -135,9 +251,9 @@ export default function ProfilePage() {
       <div className="text-center space-y-1 pt-6">
         <div className="flex items-center justify-center gap-1">
           <Dumbbell className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs text-primary font-medium">HYROX TRACKER</span>
+          <span className="text-xs text-primary font-medium">HYBRID ATHLETE</span>
         </div>
-        <p className="text-[10px] text-muted-foreground/60">v1.0.0 · Built for one</p>
+        <p className="text-[10px] text-muted-foreground/60">v2.0.0 · Hyrox Amsterdam 2027</p>
       </div>
     </div>
   )

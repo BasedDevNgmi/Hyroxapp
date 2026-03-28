@@ -1,216 +1,486 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  usePrograms,
+  useAllWorkouts,
+  DAY_NAMES,
+} from '@/hooks/useProgram'
+import type { WorkoutSummary } from '@/hooks/useProgram'
+import { useWorkoutLogs } from '@/hooks/useWorkoutLog'
+import { useProfile } from '@/hooks/useProfile'
+import {
+  ChevronDown,
+  Loader2,
+  CheckCircle2,
+  Dumbbell,
+  Flame,
+  Zap,
+  MapPin,
+  Trophy,
+  Target,
+} from 'lucide-react'
 
-import { Trophy, Zap, CheckCircle2, Lock } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
-import { ProgressBar } from '@/components/ui/ProgressBar'
+// ── Phase config ──────────────────────────────────────
+const PHASE_CONFIG = [
+  {
+    label: 'Phase 1',
+    name: 'Foundation',
+    accent: '#3b82f6',    // blue-500
+    accentBg: 'rgba(59,130,246,0.12)',
+    accentBorder: 'rgba(59,130,246,0.35)',
+    icon: Dumbbell,
+  },
+  {
+    label: 'Phase 2',
+    name: 'Buildup',
+    accent: '#f59e0b',    // amber-500
+    accentBg: 'rgba(245,158,11,0.12)',
+    accentBorder: 'rgba(245,158,11,0.35)',
+    icon: Flame,
+  },
+  {
+    label: 'Phase 3',
+    name: 'Intensity',
+    accent: '#ef4444',    // red-500
+    accentBg: 'rgba(239,68,68,0.12)',
+    accentBorder: 'rgba(239,68,68,0.35)',
+    icon: Zap,
+  },
+  {
+    label: 'Phase 4',
+    name: 'Race Prep',
+    accent: '#a855f7',    // purple-500
+    accentBg: 'rgba(168,85,247,0.12)',
+    accentBorder: 'rgba(168,85,247,0.35)',
+    icon: Trophy,
+  },
+  {
+    label: 'Phase 5',
+    name: 'Taper',
+    accent: '#10b981',    // emerald-500
+    accentBg: 'rgba(16,185,129,0.12)',
+    accentBorder: 'rgba(16,185,129,0.35)',
+    icon: Target,
+  },
+] as const
 
-export default function ProgramPage() {
-  const [journeyPhase, setJourneyPhase] = useState<'selection' | 'timeline'>('selection')
-  const [selectedJourney, setSelectedJourney] = useState<string>('foundations')
+const DELOAD_WEEKS = new Set([4, 8, 16, 24, 36])
+const TEST_WEEKS = new Set([12, 20, 28])
 
-  if (journeyPhase === 'selection') {
-    return (
-      <div className="fixed inset-0 bg-[#1a1914] z-50 flex flex-col overflow-y-auto pb-24">
-        {/* Hero Image */}
-        <div className="relative w-full h-[40vh] shrink-0">
-          <div 
-            className="absolute inset-0 bg-cover bg-bottom"
-            style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&q=80&w=800&h=800")' }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1a1914] to-transparent/20" />
-          <div className="absolute top-12 left-0 right-0 text-center">
-            <span className="text-white text-sm font-heading tracking-[0.3em]">L U M I N A</span>
-          </div>
-        </div>
+// ── Helpers ───────────────────────────────────────────
+function getPhaseIndex(week: number): number {
+  if (week <= 12) return 0
+  if (week <= 20) return 1
+  if (week <= 28) return 2
+  if (week <= 38) return 3
+  return 4
+}
 
-        {/* Content */}
-        <div className="px-6 flex-1 -mt-8 relative z-10 flex flex-col">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-heading font-bold mb-3">Select Your Journey</h1>
-            <p className="text-sm font-light text-gray-400 max-w-[280px] mx-auto leading-relaxed">
-              Begin your path to wellness with a program tailored to your intentions.
-            </p>
-          </div>
+function computeCurrentWeek(programStartDate: string | null): number {
+  if (!programStartDate) return 1
+  const start = new Date(programStartDate)
+  const diffDays = Math.floor(
+    (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24),
+  )
+  if (diffDays < 0) return 1
+  return Math.min(Math.floor(diffDays / 7) + 1, 42)
+}
 
-          <div className="space-y-4 flex-1">
-            {/* Option 1 */}
-            <div 
-              onClick={() => setSelectedJourney('foundations')}
-              className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                selectedJourney === 'foundations' 
-                  ? 'bg-[#24221b] border-primary shadow-[0_0_15px_rgba(250,204,21,0.1)]' 
-                  : 'bg-[#24221b] border-[#3f3b2f] hover:border-primary/50'
-              }`}
-            >
-              <div>
-                <h3 className="font-bold text-lg mb-1">Foundations</h3>
-                <p className="text-xs text-gray-400">Perfect for those starting their practice</p>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedJourney === 'foundations' ? 'border-primary' : 'border-gray-500'}`}>
-                {selectedJourney === 'foundations' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-              </div>
-            </div>
+// ── Accordion row for a single week ───────────────────
+function WeekRow({
+  weekNumber,
+  currentWeek,
+  phaseIndex,
+  completedIds,
+  allWorkouts,
+  isExpanded,
+  onToggle,
+}: {
+  weekNumber: number
+  currentWeek: number
+  phaseIndex: number
+  completedIds: Set<string>
+  allWorkouts: WorkoutSummary[]
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const navigate = useNavigate()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(0)
 
-            {/* Option 2 */}
-            <div 
-              onClick={() => setSelectedJourney('strength')}
-              className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                selectedJourney === 'strength' 
-                  ? 'bg-[#24221b] border-primary shadow-[0_0_15px_rgba(250,204,21,0.1)]' 
-                  : 'bg-[#24221b] border-[#3f3b2f] hover:border-primary/50'
-              }`}
-            >
-              <div>
-                <h3 className="font-bold text-lg mb-1">Strength & Tone</h3>
-                <p className="text-xs text-gray-400">Focus on definition and core stability</p>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedJourney === 'strength' ? 'border-primary' : 'border-gray-500'}`}>
-                {selectedJourney === 'strength' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-              </div>
-            </div>
+  const phase = PHASE_CONFIG[phaseIndex]
+  const isDeload = DELOAD_WEEKS.has(weekNumber)
+  const isTest = TEST_WEEKS.has(weekNumber)
+  const isCurrent = weekNumber === currentWeek
+  const weekWorkouts = allWorkouts.filter(
+    (w) => w.week_number === weekNumber,
+  )
+  const doneCount = weekWorkouts.filter((w) => completedIds.has(w.id)).length
+  const totalCount = weekWorkouts.length
 
-            {/* Option 3 */}
-            <div 
-              onClick={() => setSelectedJourney('mindful')}
-              className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                selectedJourney === 'mindful' 
-                  ? 'bg-[#24221b] border-primary shadow-[0_0_15px_rgba(250,204,21,0.1)]' 
-                  : 'bg-[#24221b] border-[#3f3b2f] hover:border-primary/50'
-              }`}
-            >
-              <div>
-                <h3 className="font-bold text-lg mb-1">Mindful Movement</h3>
-                <p className="text-xs text-gray-400">Slow flow for mental clarity and flexibility</p>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedJourney === 'mindful' ? 'border-primary' : 'border-gray-500'}`}>
-                {selectedJourney === 'mindful' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-              </div>
-            </div>
-          </div>
+  // Measure content for smooth expand
+  useEffect(() => {
+    if (contentRef.current) {
+      setHeight(contentRef.current.scrollHeight)
+    }
+  }, [isExpanded, weekWorkouts.length])
 
-          <Button 
-            className="w-full mt-8 font-bold tracking-widest gap-2" 
-            size="lg"
-            onClick={() => setJourneyPhase('timeline')}
+  return (
+    <div
+      className={`rounded-xl border transition-colors duration-200 ${
+        isDeload
+          ? 'border-dashed border-border/60'
+          : isCurrent
+            ? 'border-border'
+            : 'border-border/50'
+      }`}
+      style={{
+        borderLeftWidth: '3px',
+        borderLeftColor: phase.accent,
+        borderLeftStyle: isDeload ? 'dashed' : 'solid',
+      }}
+    >
+      {/* Header */}
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-5 py-4 transition-colors rounded-xl ${
+          isCurrent ? 'bg-primary/5' : 'bg-card hover:bg-card/80'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {/* Week number badge */}
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
+              isCurrent
+                ? 'bg-primary text-primary-foreground'
+                : doneCount === totalCount && totalCount > 0
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'bg-border/50 text-muted-foreground'
+            }`}
           >
-            CONTINUE TO JOURNEY →
-          </Button>
+            {doneCount === totalCount && totalCount > 0 ? (
+              <Trophy className="w-4 h-4" />
+            ) : (
+              weekNumber
+            )}
+          </div>
 
-          {/* Dots */}
-          <div className="flex justify-center gap-2 mt-8">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-            <div className="w-1.5 h-1.5 rounded-full bg-gray-600" />
-            <div className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+          <div className="text-left">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">
+                Week {weekNumber}
+              </span>
+              {isCurrent && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                  <MapPin className="w-2.5 h-2.5" />
+                  NOW
+                </span>
+              )}
+              {isDeload && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
+                  DELOAD
+                </span>
+              )}
+              {isTest && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                  TEST
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {doneCount}/{totalCount} done
+            </span>
           </div>
         </div>
+
+        <div className="flex items-center gap-3">
+          {/* Mini completion dots */}
+          <div className="flex gap-1">
+            {weekWorkouts.map((w) => (
+              <div
+                key={w.id}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  completedIds.has(w.id) ? 'bg-emerald-400' : 'bg-border'
+                }`}
+              />
+            ))}
+          </div>
+          <ChevronDown
+            className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+      </button>
+
+      {/* Expandable content */}
+      <div
+        className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
+        style={{ maxHeight: isExpanded ? `${height}px` : '0px' }}
+      >
+        <div ref={contentRef} className="px-5 pb-5 pt-2 space-y-3">
+          {weekWorkouts
+            .sort((a, b) => a.day_number - b.day_number)
+            .map((workout) => {
+              const done = completedIds.has(workout.id)
+              return (
+                <button
+                  key={workout.id}
+                  onClick={() => navigate(`/workout/${workout.id}`)}
+                  className={`w-full flex items-center gap-4 p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${
+                    done
+                      ? 'bg-emerald-500/5 border-emerald-500/20'
+                      : 'bg-background/50 border-border/40 hover:border-border'
+                  }`}
+                >
+                  {/* Day badge */}
+                  <div
+                    className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold shrink-0 ${
+                      done
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-border/30 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="leading-none">
+                      {DAY_NAMES[workout.day_number] || `D${workout.day_number}`}
+                    </span>
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm font-medium truncate ${
+                        done ? 'text-foreground/70' : 'text-foreground'
+                      }`}
+                    >
+                      {workout.name}
+                    </p>
+                    {workout.focus && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {workout.focus}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  {done ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 shrink-0" />
+                  )}
+                </button>
+              )
+            })}
+
+          {weekWorkouts.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              No workouts scheduled
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────
+export default function ProgramPage() {
+  const { programs, loading: programsLoading } = usePrograms()
+  const { workouts: allWorkouts, loading: workoutsLoading } = useAllWorkouts()
+  const { logs, loading: logsLoading } = useWorkoutLogs()
+  const { profile, loading: profileLoading } = useProfile()
+
+  const loading = programsLoading || workoutsLoading || logsLoading || profileLoading
+
+  const currentWeek = useMemo(
+    () => computeCurrentWeek(profile?.program_start_date ?? null),
+    [profile?.program_start_date],
+  )
+
+  const currentPhaseIndex = getPhaseIndex(currentWeek)
+
+  // Track completed workout IDs
+  const completedIds = useMemo(
+    () => new Set(logs.map((l) => l.workout_id)),
+    [logs],
+  )
+
+  // Accordion state: expand current week by default
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set())
+  const initialized = useRef(false)
+
+  useEffect(() => {
+    if (!loading && !initialized.current) {
+      setExpandedWeeks(new Set([currentWeek]))
+      initialized.current = true
+    }
+  }, [loading, currentWeek])
+
+  const toggleWeek = useCallback((week: number) => {
+    setExpandedWeeks((prev) => {
+      const next = new Set(prev)
+      if (next.has(week)) {
+        next.delete(week)
+      } else {
+        next.add(week)
+      }
+      return next
+    })
+  }, [])
+
+  // Refs for scroll-to-phase
+  const phaseRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null, null])
+
+  const scrollToPhase = useCallback((index: number) => {
+    phaseRefs.current[index]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }, [])
+
+  // Compute phase completion percentages
+  const phaseCompletion = useMemo(() => {
+    return programs.map((program) => {
+      const phaseWorkouts = allWorkouts.filter(
+        (w) =>
+          w.week_number >= program.week_start &&
+          w.week_number <= program.week_end,
+      )
+      if (phaseWorkouts.length === 0) return 0
+      const done = phaseWorkouts.filter((w) => completedIds.has(w.id)).length
+      return Math.round((done / phaseWorkouts.length) * 100)
+    })
+  }, [programs, allWorkouts, completedIds])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     )
   }
 
-  // --- TIMELINE VIEW (Image 3) ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-xl font-semibold">Hyrox Elite Program</h1>
-        <div className="w-10 h-10 rounded-full bg-[#2d2a21] border border-[#3f3b2f] flex items-center justify-center text-primary">
-          <Trophy className="w-5 h-5" />
-        </div>
-      </div>
-
-      {/* Global Status Card */}
-      <Card className="p-5">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-[#a1a1aa] mb-2">Global Status</div>
-        <div className="flex items-end justify-between mb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold font-heading">34%</span>
-            <span className="text-sm text-gray-400">Overall</span>
-          </div>
-          <div className="px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-bold font-heading">
-            1/3 Phases
-          </div>
-        </div>
-        
-        <ProgressBar progress={34} height="md" trackColor="bg-[#2d2a21]" className="mb-4" />
-        
-        <p className="text-xs text-gray-400 font-light leading-relaxed">
-          You've mastered the fundamentals. Next milestone: Power Phase.
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Program</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          42-Week Hybrid Athlete Plan — Amsterdam 2027
         </p>
-      </Card>
-
-      <div className="flex items-center justify-between mt-8 mb-6">
-        <h2 className="text-xl font-heading font-bold">Training Journey</h2>
-        <span className="text-[10px] font-bold text-primary tracking-widest uppercase cursor-pointer">View Roadmap</span>
       </div>
 
-      {/* Vertical Timeline */}
-      <div className="relative pl-6 space-y-10">
-        {/* Timeline Line */}
-        <div className="absolute left-[35px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-[#2d2a21]" />
+      {/* ── Phase overview cards ─────────────────────────── */}
+      <div className="flex gap-4 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scrollbar-hide">
+        {programs.map((program, i) => {
+          const config = PHASE_CONFIG[i]
+          if (!config) return null
+          const Icon = config.icon
+          const isCurrent = i === currentPhaseIndex
+          const pct = phaseCompletion[i]
 
-        {/* Phase 1 (Completed) */}
-        <div className="relative">
-          <div className="absolute -left-10 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[#1a1914] z-10 shadow-[0_0_15px_rgba(250,204,21,0.4)]">
-            <CheckCircle2 className="w-5 h-5 fill-current" />
-          </div>
-          <div className="pl-4">
-            <h3 className="text-lg font-bold mb-1">Phase 1: Base Engine</h3>
-            <p className="text-sm text-gray-400 font-light mb-3">Foundational aerobic capacity & technique</p>
-            <div className="flex gap-2">
-              <span className="px-2 py-1 bg-[#2d2a21] rounded text-[10px] uppercase font-bold text-gray-400 tracking-wider">8 Weeks</span>
-              <span className="px-2 py-1 bg-[#2d2a21] border border-primary/30 rounded text-[10px] uppercase font-bold text-primary tracking-wider">Completed</span>
-            </div>
-            
-            <div className="mt-4 rounded-xl overflow-hidden h-32 relative opacity-50 grayscale transition-all hover:grayscale-0 hover:opacity-100 cursor-pointer">
-               <img src="/images/phase_1.png" alt="Foundation" className="w-full h-full object-cover" />
-            </div>
-          </div>
-        </div>
+          return (
+            <button
+              key={program.id}
+              onClick={() => scrollToPhase(i)}
+              className={`shrink-0 snap-start w-[calc(28%-8px)] min-w-[120px] rounded-xl p-4 border text-left transition-all active:scale-[0.97] ${
+                isCurrent ? 'ring-1' : ''
+              }`}
+              style={{
+                backgroundColor: config.accentBg,
+                borderColor: isCurrent ? config.accent : config.accentBorder,
+                ...(isCurrent ? { ringColor: config.accent } : {}),
+              }}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <Icon
+                  className="w-3.5 h-3.5"
+                  style={{ color: config.accent }}
+                />
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: config.accent }}
+                >
+                  {config.label}
+                </span>
+              </div>
 
-        {/* Phase 2 (Active/Next) */}
-        <div className="relative">
-          <div className="absolute -left-10 w-8 h-8 rounded-full bg-[#1a1914] border-2 border-primary flex items-center justify-center text-primary z-10 shadow-[0_0_15px_rgba(250,204,21,0.2)]">
-            <Zap className="w-4 h-4 fill-current" />
-          </div>
-          <div className="pl-4">
-            <h3 className="text-lg font-bold mb-1">Phase 2: Strength & Power</h3>
-            <p className="text-sm text-gray-400 font-light mb-3">Functional strength and explosive movements</p>
-            <div className="flex gap-2 mb-4">
-              <span className="px-2 py-1 bg-[#2d2a21] rounded text-[10px] uppercase font-bold text-gray-400 tracking-wider">6 Weeks</span>
-              <span className="px-2 py-1 bg-primary text-[#1a1914] rounded text-[10px] uppercase font-bold tracking-wider">Up Next</span>
-            </div>
-            
-            <div className="mb-4 rounded-xl overflow-hidden h-36 relative shadow-[0_0_15px_rgba(250,204,21,0.2)]">
-               <img src="/images/phase_2.png" alt="Strength & Power" className="w-full h-full object-cover" />
-               <div className="absolute inset-0 bg-gradient-to-t from-[#1a1914] to-transparent/20" />
-            </div>
+              <p className="text-xs font-medium text-foreground leading-tight mb-1 line-clamp-2">
+                {config.name}
+              </p>
 
-            <Button className="w-full font-bold tracking-widest shadow-[0_0_20px_rgba(250,204,21,0.15)]">
-              START PHASE 2
-            </Button>
-          </div>
-        </div>
+              <p className="text-[10px] text-muted-foreground mb-2">
+                Weeks {program.week_start}-{program.week_end}
+              </p>
 
-        {/* Phase 3 (Locked) */}
-        <div className="relative opacity-40">
-          <div className="absolute -left-10 w-8 h-8 rounded-full bg-[#2d2a21] flex items-center justify-center text-[#a1a1aa] z-10">
-            <Lock className="w-4 h-4" />
-          </div>
-          <div className="pl-4">
-            <h3 className="text-lg font-bold mb-1">Phase 3: Peak Performance</h3>
-            <p className="text-sm text-gray-400 font-light mb-3">Competition prep and max intensity tapering</p>
-            <div className="flex gap-2">
-              <span className="px-2 py-1 bg-[#2d2a21] rounded text-[10px] uppercase font-bold text-gray-400 tracking-wider">4 Weeks</span>
-              <span className="px-2 py-1 bg-[#2d2a21] rounded text-[10px] uppercase font-bold text-gray-500 tracking-wider">Locked</span>
-            </div>
-            <div className="mt-4 rounded-xl overflow-hidden h-24 relative opacity-30 grayscale">
-               <img src="/images/phase_3.png" alt="Peak Performance" className="w-full h-full object-cover" />
-            </div>
-          </div>
-        </div>
-
+              {/* Progress bar */}
+              <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: config.accent,
+                  }}
+                />
+              </div>
+              <p
+                className="text-[10px] font-medium mt-1"
+                style={{ color: config.accent }}
+              >
+                {pct}%
+              </p>
+            </button>
+          )
+        })}
       </div>
+
+      {/* ── Week accordion by phase ──────────────────────── */}
+      {programs.map((program, pi) => {
+        const config = PHASE_CONFIG[pi]
+        if (!config) return null
+        const Icon = config.icon
+        const weeks = Array.from(
+          { length: program.week_end - program.week_start + 1 },
+          (_, i) => program.week_start + i,
+        )
+
+        return (
+          <div
+            key={program.id}
+            ref={(el) => {
+              phaseRefs.current[pi] = el
+            }}
+            className="space-y-3"
+          >
+            {/* Phase section header */}
+            <div className="flex items-center gap-2 pt-2 pb-1">
+              <Icon
+                className="w-4 h-4"
+                style={{ color: config.accent }}
+              />
+              <h2
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: config.accent }}
+              >
+                {config.label} &mdash; {config.name}
+              </h2>
+            </div>
+
+            {weeks.map((week) => (
+              <WeekRow
+                key={week}
+                weekNumber={week}
+                currentWeek={currentWeek}
+                phaseIndex={pi}
+                completedIds={completedIds}
+                allWorkouts={allWorkouts}
+                isExpanded={expandedWeeks.has(week)}
+                onToggle={() => toggleWeek(week)}
+              />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
