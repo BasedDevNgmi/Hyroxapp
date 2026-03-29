@@ -12,13 +12,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'GRIDRUNNER — Hybrid Athlete OS',
-        short_name: 'GRIDRUNNER',
-        description: '42-Week Hybrid Athlete Training Protocol',
+        name: 'Hybrid Athlete',
+        short_name: 'Hybrid',
+        description: '42-Week Training Program — Hyrox Amsterdam 2027',
         start_url: '/',
         display: 'standalone',
-        background_color: '#060a10',
-        theme_color: '#060a10',
+        background_color: '#111110',
+        theme_color: '#111110',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

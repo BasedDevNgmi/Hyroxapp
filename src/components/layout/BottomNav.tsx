@@ -1,18 +1,18 @@
 import { NavLink } from 'react-router-dom'
-import { Crosshair, Calendar, BarChart2, User } from 'lucide-react'
+import { CalendarCheck, Layers, BarChart3, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { to: '/', icon: Crosshair, label: 'HQ' },
-  { to: '/program', icon: Calendar, label: 'Protocol' },
-  { to: '/progress', icon: BarChart2, label: 'Data' },
-  { to: '/profile', icon: User, label: 'Config' },
+  { to: '/', icon: CalendarCheck, label: 'Today' },
+  { to: '/program', icon: Layers, label: 'Program' },
+  { to: '/progress', icon: BarChart3, label: 'Stats' },
+  { to: '/profile', icon: Settings, label: 'Settings' },
 ]
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-primary/20 bg-[#060a10]/95 backdrop-blur-xl">
-      <div className="max-w-lg mx-auto flex items-center justify-around h-[72px] px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-2xl border-t border-border/50">
+      <div className="max-w-lg mx-auto flex items-center justify-around h-16 px-2">
         {navItems.map(item => (
           <NavLink
             key={item.to}
@@ -20,36 +20,19 @@ export default function BottomNav() {
             end={item.to === '/'}
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-1 min-w-[64px] py-2 transition-all duration-200',
+                'flex flex-col items-center gap-0.5 min-w-[60px] py-1.5 transition-colors duration-150',
                 isActive
                   ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground'
               )
             }
           >
-            {({ isActive }) => (
-              <>
-                <div className={cn(
-                  'relative p-1.5 rounded transition-all duration-200',
-                  isActive && 'bg-primary/10'
-                )}>
-                  <item.icon className={cn(
-                    'w-5 h-5 transition-all duration-200',
-                    isActive && 'drop-shadow-[0_0_6px_rgba(0,229,255,0.6)]'
-                  )} />
-                  {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary shadow-[0_0_4px_rgba(0,229,255,0.8)]" />
-                  )}
-                </div>
-                <span className="text-[9px] font-mono font-bold uppercase tracking-[0.15em]">
-                  {item.label}
-                </span>
-              </>
-            )}
+            <item.icon className="w-[22px] h-[22px]" strokeWidth={1.8} />
+            <span className="text-[10px] font-medium tracking-wide">{item.label}</span>
           </NavLink>
         ))}
       </div>
-      <div className="h-[env(safe-area-inset-bottom)] bg-[#060a10]" />
+      <div className="h-[env(safe-area-inset-bottom)] bg-background" />
     </nav>
   )
 }

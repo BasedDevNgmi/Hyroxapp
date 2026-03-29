@@ -1,40 +1,38 @@
 @import "tailwindcss";
-@import "@fontsource/space-mono/400.css";
-@import "@fontsource/space-mono/700.css";
-@import "@fontsource/rajdhani/400.css";
-@import "@fontsource/rajdhani/500.css";
-@import "@fontsource/rajdhani/600.css";
-@import "@fontsource/rajdhani/700.css";
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/outfit/400.css";
+@import "@fontsource/outfit/500.css";
+@import "@fontsource/outfit/600.css";
+@import "@fontsource/outfit/700.css";
 
 @theme {
-  --color-background: #060a10;
-  --color-foreground: #e0e8f0;
-  --color-card: #0c1220;
-  --color-card-foreground: #e0e8f0;
-  --color-popover: #0c1220;
-  --color-popover-foreground: #e0e8f0;
-  --color-primary: #00e5ff;
-  --color-primary-foreground: #060a10;
-  --color-secondary: #111a2e;
-  --color-secondary-foreground: #e0e8f0;
-  --color-muted: #111a2e;
-  --color-muted-foreground: #5a7a9a;
-  --color-accent: #ff2d6f;
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #ff3b5c;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #1a2744;
-  --color-input: #111a2e;
-  --color-ring: #00e5ff;
-  --color-success: #00ff88;
-  --radius: 0.5rem;
+  --color-background: #111110;
+  --color-foreground: #f0ede8;
+  --color-card: #1a1918;
+  --color-card-foreground: #f0ede8;
+  --color-popover: #1a1918;
+  --color-popover-foreground: #f0ede8;
+  --color-primary: #c9a96e;
+  --color-primary-foreground: #111110;
+  --color-secondary: #1f1e1c;
+  --color-secondary-foreground: #f0ede8;
+  --color-muted: #1f1e1c;
+  --color-muted-foreground: #7a756d;
+  --color-accent: #c9a96e;
+  --color-accent-foreground: #111110;
+  --color-destructive: #c0392b;
+  --color-destructive-foreground: #f0ede8;
+  --color-border: #2a2825;
+  --color-input: #1f1e1c;
+  --color-ring: #c9a96e;
+  --color-success: #4a9;
+  --radius: 0.75rem;
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-heading: 'Rajdhani', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: 'Space Mono', 'SF Mono', 'Fira Code', monospace;
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * {
@@ -52,86 +50,17 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 #root {
   min-height: 100svh;
 }
 
-/* Scanline overlay effect */
-.scanlines::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 229, 255, 0.015) 2px,
-    rgba(0, 229, 255, 0.015) 4px
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Glow text effect */
-.glow-text {
-  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5), 0 0 30px rgba(0, 229, 255, 0.2);
-}
-
-.glow-accent {
-  text-shadow: 0 0 10px rgba(255, 45, 111, 0.5), 0 0 30px rgba(255, 45, 111, 0.2);
-}
-
-/* Neon border glow */
-.neon-border {
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.15), inset 0 0 8px rgba(0, 229, 255, 0.05);
-}
-
-.neon-border-accent {
-  box-shadow: 0 0 8px rgba(255, 45, 111, 0.15), inset 0 0 8px rgba(255, 45, 111, 0.05);
-}
-
-/* Grid background pattern */
-.grid-bg {
-  background-image:
-    linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-background);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
-  border-radius: 2px;
-}
-
-/* Pulse animation for active elements */
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(0, 229, 255, 0.3); }
-  50% { box-shadow: 0 0 16px rgba(0, 229, 255, 0.6); }
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
 /* Range input styling */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 4px;
+  height: 3px;
   background: var(--color-border);
   border-radius: 2px;
   outline: none;
@@ -140,20 +69,23 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   background: var(--color-primary);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   background: var(--color-primary);
   cursor: pointer;
   border: none;
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }

@@ -2,7 +2,7 @@ import { forwardRef, type HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'glow' | 'glass' | 'outline'
+  variant?: 'default' | 'outline'
 }
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -11,12 +11,10 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-lg border transition-all duration-300',
+          'rounded-xl transition-colors',
           {
-            'bg-card border-border': variant === 'default',
-            'bg-card border-primary/30 neon-border': variant === 'glow',
-            'bg-[#060a10]/60 backdrop-blur-md border-primary/10': variant === 'glass',
-            'bg-transparent border-border': variant === 'outline',
+            'bg-card': variant === 'default',
+            'bg-transparent border border-border': variant === 'outline',
           },
           className
         )}
@@ -26,5 +24,4 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
   }
 )
 Card.displayName = 'Card'
-
 export { Card }

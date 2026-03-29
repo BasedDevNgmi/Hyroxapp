@@ -11,9 +11,7 @@ import {
   Minus,
   Timer,
   Flame,
-  Calendar,
   ChevronRight,
-  Crosshair,
   Activity,
   ArrowUpRight,
   Target,
@@ -24,7 +22,6 @@ import {
   startOfWeek,
   subWeeks,
   addDays,
-  differenceInCalendarWeeks,
 } from 'date-fns'
 
 interface ExerciseLog {
@@ -61,9 +58,7 @@ function buildExerciseNameMap(): Map<string, string> {
 
 function buildLogDateMap(workoutLogs: WorkoutLogEntry[]): Map<string, string> {
   const map = new Map<string, string>()
-  for (const log of workoutLogs) {
-    map.set(log.id, log.completed_at)
-  }
+  for (const log of workoutLogs) map.set(log.id, log.completed_at)
   return map
 }
 
@@ -126,30 +121,22 @@ export default function ProgressPage() {
     const today = new Date()
     const mondayThisWeek = startOfWeek(today, { weekStartsOn: 1 })
     const startDate = subWeeks(mondayThisWeek, 11)
-
     const completedDates = new Map<string, number>()
     for (const log of logs) {
       const d = new Date(log.completed_at)
       const key = format(d, 'yyyy-MM-dd')
       completedDates.set(key, Math.max(completedDates.get(key) || 0, log.overall_rpe || 5))
     }
-
-    const weeks: { weekLabel: string; days: { date: Date; dateKey: string; hasWorkout: boolean; rpe: number; isFuture: boolean }[] }[] = []
+    const weeks: { days: { date: Date; dateKey: string; hasWorkout: boolean; rpe: number; isFuture: boolean }[] }[] = []
     for (let w = 0; w < 12; w++) {
       const weekStart = addDays(startDate, w * 7)
-      const weekNum = differenceInCalendarWeeks(weekStart, startDate, { weekStartsOn: 1 }) + 1
       const days = []
       for (let d = 0; d < 7; d++) {
         const date = addDays(weekStart, d)
         const dateKey = format(date, 'yyyy-MM-dd')
-        days.push({
-          date, dateKey,
-          hasWorkout: completedDates.has(dateKey),
-          rpe: completedDates.get(dateKey) || 0,
-          isFuture: date > today,
-        })
+        days.push({ date, dateKey, hasWorkout: completedDates.has(dateKey), rpe: completedDates.get(dateKey) || 0, isFuture: date > today })
       }
-      weeks.push({ weekLabel: `W${weekNum}`, days })
+      weeks.push({ days })
     }
     return weeks
   }, [logs])
@@ -164,13 +151,11 @@ export default function ProgressPage() {
       if (!byExercise.has(name)) byExercise.set(name, [])
       byExercise.get(name)!.push({ weight: el.weight_kg, date: dateStr })
     }
-
     const progressions: { name: string; firstWeight: number; latestWeight: number; change: number; entries: number }[] = []
     for (const [name, entries] of byExercise) {
       if (entries.length < 2) continue
       entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      const firstDate = entries[0].date
-      const lastDate = entries[entries.length - 1].date
+      const firstDate = entries[0].date, lastDate = entries[entries.length - 1].date
       if (firstDate === lastDate) continue
       const firstMax = Math.max(...entries.filter(e => e.date === firstDate).map(e => e.weight))
       const lastMax = Math.max(...entries.filter(e => e.date === lastDate).map(e => e.weight))
@@ -187,64 +172,50 @@ export default function ProgressPage() {
 
   function getCellColor(hasWorkout: boolean, rpe: number, isFuture: boolean): string {
     if (isFuture) return 'bg-transparent'
-    if (!hasWorkout) return 'bg-secondary/40'
+    if (!hasWorkout) return 'bg-secondary/50'
     if (rpe <= 4) return 'bg-primary/20'
     if (rpe <= 6) return 'bg-primary/40'
     if (rpe <= 8) return 'bg-primary/60'
-    return 'bg-primary/90'
+    return 'bg-primary'
   }
 
-  const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
-      </div>
-    )
+    return <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-5 h-5 text-primary animate-spin" /></div>
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-24 pt-2">
       <div>
-        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground">Data</h1>
-        <p className="text-[10px] font-mono text-muted-foreground mt-1 tracking-wider">
-          W{currentWeek} OF 42 // TELEMETRY
-        </p>
+        <h1 className="text-[22px] font-semibold tracking-tight">Stats</h1>
+        <p className="text-sm text-muted-foreground">Week {currentWeek} of 42</p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={<Crosshair className="w-4 h-4" />} label="Sessions" value={String(totalWorkouts)} />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="Workouts" value={String(totalWorkouts)} />
         <StatCard icon={<Timer className="w-4 h-4" />} label="Time" value={`${totalHours}h`} />
         <StatCard icon={<Flame className="w-4 h-4" />} label="Streak" value={String(weekStreak)} suffix={weekStreak === 1 ? 'week' : 'weeks'} />
         <StatCard icon={<Activity className="w-4 h-4" />} label="Avg RPE" value={avgRpe || '--'} suffix={avgRpe ? '/ 10' : ''} />
       </div>
 
       {/* Heatmap */}
-      <div className="bg-card rounded-lg p-4 border border-border">
-        <div className="flex items-center gap-2 mb-3">
-          <Calendar className="w-3.5 h-3.5 text-primary" />
-          <h3 className="text-xs font-heading font-bold uppercase tracking-wider">Activity // 12 Weeks</h3>
-        </div>
+      <div className="bg-card rounded-xl p-4">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activity</h3>
         <div className="overflow-x-auto">
-          <div className="inline-flex gap-0.5">
-            <div className="flex flex-col gap-0.5 mr-1 pt-5">
-              {DAY_LABELS.map((label, i) => (
-                <div key={i} className="h-3 w-4 flex items-center justify-end">
-                  {i % 2 === 0 ? <span className="text-[8px] font-mono text-muted-foreground">{label}</span> : null}
+          <div className="inline-flex gap-[3px]">
+            <div className="flex flex-col gap-[3px] mr-1 pt-0">
+              {['M', '', 'W', '', 'F', '', 'S'].map((label, i) => (
+                <div key={i} className="h-[11px] w-3 flex items-center justify-end">
+                  {label && <span className="text-[8px] text-muted-foreground/60">{label}</span>}
                 </div>
               ))}
             </div>
             {heatmapData.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-0.5">
-                <div className="h-4 flex items-center justify-center">
-                  {wi % 3 === 0 ? <span className="text-[8px] font-mono text-muted-foreground">{format(week.days[0].date, 'M/d')}</span> : null}
-                </div>
+              <div key={wi} className="flex flex-col gap-[3px]">
                 {week.days.map(day => (
                   <div
                     key={day.dateKey}
-                    className={`w-3 h-3 rounded-[2px] ${getCellColor(day.hasWorkout, day.rpe, day.isFuture)} ${
+                    className={`w-[11px] h-[11px] rounded-[2px] ${getCellColor(day.hasWorkout, day.rpe, day.isFuture)} ${
                       !day.isFuture && !day.hasWorkout ? 'border border-border/30' : ''
                     }`}
                     title={`${format(day.date, 'EEE, MMM d')}${day.hasWorkout ? ` — RPE ${day.rpe}` : ''}`}
@@ -254,47 +225,41 @@ export default function ProgressPage() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2 mt-3 justify-end">
-          <span className="text-[8px] font-mono text-muted-foreground">Less</span>
-          <div className="w-3 h-3 rounded-[2px] bg-secondary/40 border border-border/30" />
-          <div className="w-3 h-3 rounded-[2px] bg-primary/20" />
-          <div className="w-3 h-3 rounded-[2px] bg-primary/40" />
-          <div className="w-3 h-3 rounded-[2px] bg-primary/60" />
-          <div className="w-3 h-3 rounded-[2px] bg-primary/90" />
-          <span className="text-[8px] font-mono text-muted-foreground">More</span>
+        <div className="flex items-center gap-1.5 mt-3 justify-end">
+          <span className="text-[8px] text-muted-foreground/60">Less</span>
+          <div className="w-[11px] h-[11px] rounded-[2px] bg-secondary/50 border border-border/30" />
+          <div className="w-[11px] h-[11px] rounded-[2px] bg-primary/20" />
+          <div className="w-[11px] h-[11px] rounded-[2px] bg-primary/40" />
+          <div className="w-[11px] h-[11px] rounded-[2px] bg-primary/60" />
+          <div className="w-[11px] h-[11px] rounded-[2px] bg-primary" />
+          <span className="text-[8px] text-muted-foreground/60">More</span>
         </div>
       </div>
 
       {/* Weight Progression */}
       {weightProgressions.length > 0 && (
-        <div className="bg-card rounded-lg p-4 border border-border">
+        <div className="bg-card rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <ArrowUpRight className="w-3.5 h-3.5 text-primary" />
-            <h3 className="text-xs font-heading font-bold uppercase tracking-wider">Weight Progression</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Progression</h3>
           </div>
           <div className="space-y-2">
             {weightProgressions.map(prog => (
-              <div key={prog.name} className="flex items-center justify-between py-2 border-b border-border last:border-b-0">
+              <div key={prog.name} className="flex items-center justify-between py-2 border-b border-border/50 last:border-b-0">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-heading font-bold uppercase tracking-wider truncate">{prog.name}</p>
-                  <p className="text-[9px] font-mono text-muted-foreground">{prog.entries} sets</p>
+                  <p className="text-[13px] font-medium truncate">{prog.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{prog.entries} sets</p>
                 </div>
-                <div className="flex items-center gap-3 ml-3">
-                  <div className="text-right">
-                    <span className="text-[10px] font-mono text-muted-foreground">{prog.firstWeight}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground mx-1">{'\u2192'}</span>
-                    <span className="text-sm font-mono font-bold text-foreground">{prog.latestWeight}kg</span>
-                  </div>
-                  <div className={`flex items-center gap-0.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                <div className="flex items-center gap-2.5 ml-3">
+                  <span className="text-[11px] text-muted-foreground tabular-nums">{prog.firstWeight} &rarr; {prog.latestWeight}kg</span>
+                  <span className={`flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${
                     prog.change > 0 ? 'text-primary bg-primary/10' :
                     prog.change < 0 ? 'text-destructive bg-destructive/10' :
-                    'text-muted-foreground bg-border/50'
+                    'text-muted-foreground bg-secondary'
                   }`}>
-                    {prog.change > 0 ? <TrendingUp className="w-3 h-3" /> :
-                     prog.change < 0 ? <TrendingDown className="w-3 h-3" /> :
-                     <Minus className="w-3 h-3" />}
-                    <span>{prog.change > 0 ? '+' : ''}{prog.change}kg</span>
-                  </div>
+                    {prog.change > 0 ? <TrendingUp className="w-3 h-3" /> : prog.change < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                    {prog.change > 0 ? '+' : ''}{prog.change}
+                  </span>
                 </div>
               </div>
             ))}
@@ -302,55 +267,31 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {/* Workout History */}
+      {/* History */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Calendar className="w-3.5 h-3.5 text-primary" />
-          <h3 className="text-xs font-heading font-bold uppercase tracking-wider">Session Log</h3>
-        </div>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Recent</h3>
         {sortedLogs.length === 0 ? (
-          <div className="bg-card rounded-lg p-8 border border-border text-center space-y-3">
-            <Crosshair className="w-8 h-8 text-muted-foreground mx-auto" />
-            <p className="text-muted-foreground text-xs font-mono">
-              // No sessions logged. Complete a protocol to begin tracking.
-            </p>
+          <div className="bg-card rounded-xl p-8 text-center">
+            <p className="text-sm text-muted-foreground">No workouts logged yet.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {(sortedLogs as WorkoutLogEntry[]).map(log => {
+          <div className="space-y-1.5">
+            {(sortedLogs as WorkoutLogEntry[]).slice(0, 20).map(log => {
               const wo = workoutNames.get(log.workout_id)
               return (
-                <button
-                  key={log.id}
-                  onClick={() => navigate(`/workout/${log.workout_id}`)}
-                  className="w-full bg-card rounded-lg border border-border p-3 text-left hover:border-primary/30 transition-colors active:scale-[0.98]"
-                >
+                <button key={log.id} onClick={() => navigate(`/workout/${log.workout_id}`)}
+                  className="w-full bg-card rounded-xl p-3.5 text-left hover:bg-card/80 transition-colors active:scale-[0.98]">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <p className="text-sm font-heading font-bold uppercase tracking-wider truncate">{wo?.name || 'Session'}</p>
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
-                        <span>{format(new Date(log.completed_at), 'EEE, MMM d')}</span>
-                        <span className="text-border">{'\u00B7'}</span>
-                        <span>{formatDistanceToNow(new Date(log.completed_at), { addSuffix: true })}</span>
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium truncate">{wo?.name || 'Workout'}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {format(new Date(log.completed_at), 'EEE, MMM d')} &middot; {formatDistanceToNow(new Date(log.completed_at), { addSuffix: true })}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 ml-2 shrink-0">
-                      {log.duration_minutes != null && (
-                        <span className="text-[10px] font-mono text-muted-foreground tabular-nums">{log.duration_minutes}m</span>
-                      )}
-                      {log.knee_pain_level != null && (
-                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                          log.knee_pain_level >= 7 ? 'text-destructive bg-destructive/10' :
-                          log.knee_pain_level >= 4 ? 'text-amber-400 bg-amber-400/10' :
-                          'text-success bg-success/10'
-                        }`}>K:{log.knee_pain_level}</span>
-                      )}
-                      {log.overall_rpe != null && (
-                        <span className="text-[9px] font-mono font-bold text-foreground/80 bg-secondary px-1.5 py-0.5 rounded">
-                          RPE {log.overall_rpe}
-                        </span>
-                      )}
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                      {log.duration_minutes != null && <span className="text-[10px] text-muted-foreground tabular-nums">{log.duration_minutes}m</span>}
+                      {log.overall_rpe != null && <span className="text-[10px] font-medium text-foreground/60 bg-secondary px-1.5 py-0.5 rounded">RPE {log.overall_rpe}</span>}
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40" />
                     </div>
                   </div>
                 </button>
@@ -361,23 +302,22 @@ export default function ProgressPage() {
       </div>
 
       {/* 1RM */}
-      <div className="bg-card rounded-lg p-4 border border-border">
+      <div className="bg-card rounded-xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-3.5 h-3.5 text-primary" />
-          <h3 className="text-xs font-heading font-bold uppercase tracking-wider">1RM Values</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">1RM Values</h3>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {[
             { label: 'Squat', value: profile?.squat_1rm },
             { label: 'Deadlift', value: profile?.deadlift_1rm },
             { label: 'Bench', value: profile?.bench_1rm },
             { label: 'OHP', value: profile?.ohp_1rm },
           ].map(item => (
-            <div key={item.label} className="bg-secondary/30 rounded-lg p-3 border border-border/50">
-              <p className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground mb-1">{item.label}</p>
-              <p className="text-lg font-mono font-bold text-foreground">
-                {item.value ?? '\u2014'}{' '}
-                <span className="text-xs font-normal text-muted-foreground">kg</span>
+            <div key={item.label} className="bg-secondary/40 rounded-lg p-3">
+              <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">{item.label}</p>
+              <p className="text-base font-semibold tabular-nums">
+                {item.value ?? '\u2014'} <span className="text-xs font-normal text-muted-foreground">kg</span>
               </p>
             </div>
           ))}
@@ -389,14 +329,14 @@ export default function ProgressPage() {
 
 function StatCard({ icon, label, value, suffix }: { icon: React.ReactNode; label: string; value: string; suffix?: string }) {
   return (
-    <div className="bg-card rounded-lg p-4 border border-border">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="bg-card rounded-xl p-4">
+      <div className="flex items-center gap-1.5 mb-2">
         <span className="text-primary">{icon}</span>
-        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
       </div>
-      <div className="flex items-baseline gap-1.5">
-        <p className="text-2xl font-mono font-bold text-foreground">{value}</p>
-        {suffix && <span className="text-[10px] font-mono text-muted-foreground">{suffix}</span>}
+      <div className="flex items-baseline gap-1">
+        <p className="text-xl font-semibold tabular-nums">{value}</p>
+        {suffix && <span className="text-[10px] text-muted-foreground">{suffix}</span>}
       </div>
     </div>
   )
