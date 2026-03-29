@@ -13,9 +13,9 @@ import {
   Trophy,
   AlertTriangle,
   Timer,
-  Zap,
   X,
-  Info,
+  Minus,
+  Plus,
   Heart,
 } from 'lucide-react'
 import { PREHAB_ITEMS } from '@/data/helpers'
@@ -136,14 +136,6 @@ function SessionTimer({ startTime }: { startTime: Date }) {
   )
 }
 
-function getPreviousPerformance(id: string) {
-  const raw = localStorage.getItem('hyrox_exercise_logs')
-  if (!raw) return null
-  const logs = JSON.parse(raw) as { workout_exercise_id: string; weight_kg: number | null; reps_completed: number | null; time_seconds: number | null; completed: boolean }[]
-  const matching = logs.filter(l => l.workout_exercise_id === id && l.completed)
-  return matching.length > 0 ? matching[matching.length - 1] : null
-}
-
 function formatDuration(s: number) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
   if (h > 0) return `${h}h ${m}m`
@@ -181,6 +173,52 @@ function PrehabSection() {
   )
 }
 
+/** Stepper: tap +/- to adjust a value. Shows the value large and centered. */
+function Stepper({ value, onChange, step, unit, min: minVal }: {
+  value: number; onChange: (v: number) => void; step: number; unit?: string; min?: number
+}) {
+  const decrement = () => onChange(Math.max(minVal ?? 0, value - step))
+  const increment = () => onChange(value + step)
+  return (
+    <div className="flex items-center gap-0">
+      <button onClick={decrement}
+        className="w-9 h-9 rounded-l-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
+        <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+      </button>
+      <div className="h-9 min-w-[52px] px-1.5 bg-background border-y border-border flex items-center justify-center">
+        <span className="text-sm font-semibold tabular-nums">{value}{unit && <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{unit}</span>}</span>
+      </div>
+      <button onClick={increment}
+        className="w-9 h-9 rounded-r-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
+        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+      </button>
+    </div>
+  )
+}
+
+/** Time stepper for cardio exercises (seconds) */
+function TimeStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const decrement = () => onChange(Math.max(0, value - 5))
+  const increment = () => onChange(value + 5)
+  const min = Math.floor(value / 60)
+  const sec = value % 60
+  return (
+    <div className="flex items-center gap-0">
+      <button onClick={decrement}
+        className="w-9 h-9 rounded-l-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
+        <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+      </button>
+      <div className="h-9 min-w-[60px] px-1.5 bg-background border-y border-border flex items-center justify-center">
+        <span className="text-sm font-semibold tabular-nums">{min > 0 ? `${min}:${String(sec).padStart(2, '0')}` : `${sec}s`}</span>
+      </div>
+      <button onClick={increment}
+        className="w-9 h-9 rounded-r-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
+        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+      </button>
+    </div>
+  )
+}
+
 export default function WorkoutPage() {
   const { workoutId } = useParams()
   const navigate = useNavigate()
@@ -192,28 +230,39 @@ export default function WorkoutPage() {
   const [rpe, setRpe] = useState(5)
   const [notes, setNotes] = useState('')
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLogDraft[]>([])
-  const [expandedExercise, setExpandedExercise] = useState<string | null>(null)
   const [showComplete, setShowComplete] = useState(false)
   const [restTimer, setRestTimer] = useState<number | null>(null)
-  const [expandedInfo, setExpandedInfo] = useState<string | null>(null)
   const [animatingSetKey, setAnimatingSetKey] = useState<string | null>(null)
+  const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(new Set())
   const exerciseRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
+  // Init: PRE-FILL all sets with target values so user just taps checkmarks
   useEffect(() => {
     if (!workout) return
     const draft = loadDraft()
     if (draft) { setKneePain(draft.knee_pain_level); setRpe(draft.overall_rpe); setNotes(draft.notes); setExerciseLogs(draft.exercise_logs); return }
     const logs: ExerciseLogDraft[] = []
     for (const we of workout.workout_exercises) {
+      const targetWeight = we.target_weight_kg ? Number(we.target_weight_kg) : null
+      const targetReps = we.reps ? parseInt(we.reps) : null
+      const targetTime = we.duration_seconds || null
       for (let s = 1; s <= we.sets; s++) {
-        logs.push({ workout_exercise_id: we.id, set_number: s, weight_kg: null, reps_completed: null, time_seconds: null, completed: false, notes: '' })
+        logs.push({
+          workout_exercise_id: we.id,
+          set_number: s,
+          weight_kg: targetWeight,
+          reps_completed: !isNaN(targetReps as number) ? targetReps : null,
+          time_seconds: targetTime,
+          completed: false,
+          notes: '',
+        })
       }
     }
     setExerciseLogs(logs)
-    if (workout.workout_exercises.length > 0) setExpandedExercise(workout.workout_exercises[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout])
 
+  // Auto-save draft
   useEffect(() => {
     if (!workoutId || exerciseLogs.length === 0) return
     const timeout = setTimeout(() => {
@@ -230,11 +279,15 @@ export default function WorkoutPage() {
   const autoAdvance = useCallback((updatedLogs: ExerciseLogDraft[], weId: string) => {
     if (!workout) return
     if (!updatedLogs.filter(el => el.workout_exercise_id === weId).every(s => s.completed)) return
+    // Collapse finished exercise
+    setCollapsedExercises(prev => new Set(prev).add(weId))
+    // Scroll to next incomplete
     const order = workout.workout_exercises.map(we => we.id)
     const idx = order.indexOf(weId)
     for (let i = idx + 1; i < order.length; i++) {
       if (!updatedLogs.filter(el => el.workout_exercise_id === order[i]).every(s => s.completed)) {
-        setExpandedExercise(order[i])
+        // Uncollapse next exercise if collapsed
+        setCollapsedExercises(prev => { const n = new Set(prev); n.delete(order[i]); return n })
         setTimeout(() => exerciseRefs.current[order[i]]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
         return
       }
@@ -246,6 +299,7 @@ export default function WorkoutPage() {
       const updated = prev.map(el => el.workout_exercise_id === weId && el.set_number === setNum ? { ...el, completed: !el.completed } : el)
       const just = updated.find(el => el.workout_exercise_id === weId && el.set_number === setNum)
       if (just?.completed) {
+        navigator.vibrate?.(30)
         setAnimatingSetKey(`${weId}-${setNum}`)
         setTimeout(() => setAnimatingSetKey(null), 300)
         if (workout) {
@@ -258,20 +312,6 @@ export default function WorkoutPage() {
       return updated
     })
   }, [workout, autoAdvance])
-
-  const quickFill = (weId: string) => {
-    if (!workout) return
-    const we = workout.workout_exercises.find(w => w.id === weId)
-    if (!we) return
-    setExerciseLogs(prev => prev.map(el => {
-      if (el.workout_exercise_id !== weId) return el
-      const u: Partial<ExerciseLogDraft> = {}
-      if (we.target_weight_kg && el.weight_kg === null) u.weight_kg = Number(we.target_weight_kg)
-      if (we.reps && el.reps_completed === null) { const p = parseInt(we.reps); if (!isNaN(p)) u.reps_completed = p }
-      if (we.duration_seconds && el.time_seconds === null) u.time_seconds = we.duration_seconds
-      return { ...el, ...u }
-    }))
-  }
 
   const handleSave = async () => {
     if (!workoutId) return
@@ -334,7 +374,7 @@ export default function WorkoutPage() {
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
   return (
-    <div className={`max-w-lg mx-auto px-5 pt-6 space-y-4 ${restTimer !== null ? 'pb-32' : 'pb-8'}`}>
+    <div className={`max-w-lg mx-auto px-5 pt-6 space-y-3 ${restTimer !== null ? 'pb-32' : 'pb-8'}`}>
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-card rounded-lg transition-colors">
@@ -347,11 +387,11 @@ export default function WorkoutPage() {
         <SessionTimer startTime={startTimeRef.current} />
       </div>
 
-      {/* Progress */}
+      {/* Progress bar */}
       <div className="space-y-1">
         <div className="flex justify-between text-[11px] text-muted-foreground">
-          <span>Progress</span>
           <span>{completedCount}/{totalCount} sets</span>
+          <span>{Math.round(progress)}%</span>
         </div>
         <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
           <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
@@ -360,102 +400,96 @@ export default function WorkoutPage() {
 
       <PrehabSection />
 
-      {/* Exercises */}
+      {/* Exercises — all visible, no accordion needed */}
       <div className="space-y-2">
         {workout.workout_exercises.map(we => {
           const exercise = we.exercise as { name: string; category: string; description: string | null }
           const sets = exerciseLogs.filter(el => el.workout_exercise_id === we.id)
-          const allDone = sets.every(s => s.completed)
-          const isExpanded = expandedExercise === we.id
-          const prev = getPreviousPerformance(we.id)
-          const showInfo = expandedInfo === we.id
+          const completedSets = sets.filter(s => s.completed).length
+          const allDone = sets.length > 0 && completedSets === sets.length
+          const isCollapsed = collapsedExercises.has(we.id)
+          const isTimeBased = !!we.duration_seconds
 
           return (
             <div key={we.id} ref={el => { exerciseRefs.current[we.id] = el }}
-              className={`bg-card rounded-xl overflow-hidden transition-colors ${allDone ? 'ring-1 ring-success/20' : ''}`}>
-              <button onClick={() => setExpandedExercise(isExpanded ? null : we.id)}
-                className="w-full p-4 flex items-center justify-between text-left">
-                <div className="flex items-center gap-3">
+              className={`bg-card rounded-xl overflow-hidden transition-all ${allDone ? 'ring-1 ring-success/20' : ''}`}>
+
+              {/* Exercise header — tap to collapse/expand */}
+              <button onClick={() => setCollapsedExercises(prev => {
+                const n = new Set(prev); if (n.has(we.id)) n.delete(we.id); else n.add(we.id); return n
+              })} className="w-full px-4 py-3 flex items-center justify-between text-left">
+                <div className="flex items-center gap-3 min-w-0">
                   {allDone ? (
-                    <div className="w-7 h-7 rounded-full bg-success/10 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5 text-success" />
                     </div>
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
-                      <span className="text-[10px] text-muted-foreground font-medium">{sets.filter(s => s.completed).length}/{sets.length}</span>
+                    <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                      <span className="text-[9px] text-muted-foreground font-semibold">{completedSets}/{sets.length}</span>
                     </div>
                   )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[13px] font-medium">{exercise.name}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className={`text-[13px] font-medium truncate ${allDone ? 'text-muted-foreground line-through' : ''}`}>{exercise.name}</p>
                       <CategoryBadge category={exercise.category} />
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-[10px] text-muted-foreground">
                       {we.sets}&times;{we.reps || `${we.duration_seconds}s`}
                       {we.target_weight_kg && ` @ ${we.target_weight_kg}kg`}
-                      {we.distance_meters && ` \u00b7 ${we.distance_meters}m`}
-                      {we.tempo && ` \u00b7 ${we.tempo}`}
-                      {we.rest_seconds && ` \u00b7 ${we.rest_seconds}s rest`}
                     </p>
                   </div>
                 </div>
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+                {isCollapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />}
               </button>
 
-              {isExpanded && (
-                <div className="px-4 pb-4 space-y-3">
-                  {exercise.description && (
-                    <div>
-                      <button onClick={() => setExpandedInfo(showInfo ? null : we.id)}
-                        className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-                        <Info className="w-3 h-3" /><span>{showInfo ? 'Hide' : 'Info'}</span>
-                      </button>
-                      {showInfo && <p className="mt-1 text-xs text-muted-foreground bg-background px-3 py-2 rounded-lg">{exercise.description}</p>}
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    {we.notes && <p className="text-[10px] text-primary bg-primary/5 px-3 py-1.5 rounded-lg">{we.notes}</p>}
-                    {prev && <p className="text-[10px] text-muted-foreground bg-background px-3 py-1.5 rounded-lg">Last: {prev.weight_kg ? `${prev.weight_kg}kg` : ''}{prev.reps_completed ? ` × ${prev.reps_completed}` : ''}{prev.time_seconds ? `${prev.time_seconds}s` : ''}</p>}
-                    {(we.target_weight_kg || (we.reps && /^\d+$/.test(we.reps)) || we.duration_seconds) && (
-                      <button onClick={() => quickFill(we.id)}
-                        className="flex items-center gap-1 text-[10px] text-primary font-medium px-3 py-1.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors">
-                        <Zap className="w-3 h-3" /> Auto-fill
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-[36px_1fr_1fr_36px] gap-2 text-[9px] font-medium text-muted-foreground uppercase px-0.5">
-                    <span>Set</span>
-                    <span>{we.duration_seconds ? 'Time' : 'Weight'}</span>
-                    <span>{we.duration_seconds ? '' : 'Reps'}</span>
-                    <span></span>
-                  </div>
+              {/* Sets — visible by default, collapsible when done */}
+              {!isCollapsed && (
+                <div className="px-4 pb-3 space-y-1.5">
+                  {we.notes && <p className="text-[10px] text-primary bg-primary/5 px-3 py-1.5 rounded-lg mb-2">{we.notes}</p>}
 
                   {sets.map(set => {
                     const isAnim = animatingSetKey === `${we.id}-${set.set_number}`
                     return (
-                      <div key={set.set_number} className={`grid grid-cols-[36px_1fr_1fr_36px] gap-2 items-center ${set.completed ? 'opacity-50' : ''}`}>
-                        <span className="text-xs text-center text-muted-foreground">{set.set_number}</span>
-                        {we.duration_seconds ? (
-                          <input type="number" inputMode="numeric" placeholder={String(we.duration_seconds)} value={set.time_seconds ?? ''}
-                            onChange={e => updateSet(we.id, set.set_number, { time_seconds: e.target.value ? Number(e.target.value) : null })}
-                            className="h-11 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary" />
-                        ) : (
-                          <input type="number" inputMode="decimal" placeholder={we.target_weight_kg ? `${we.target_weight_kg}` : 'kg'} value={set.weight_kg ?? ''}
-                            onChange={e => updateSet(we.id, set.set_number, { weight_kg: e.target.value ? Number(e.target.value) : null })}
-                            className="h-11 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary" />
-                        )}
-                        {!we.duration_seconds ? (
-                          <input type="number" inputMode="numeric" placeholder={we.reps || ''} value={set.reps_completed ?? ''}
-                            onChange={e => updateSet(we.id, set.set_number, { reps_completed: e.target.value ? Number(e.target.value) : null })}
-                            className="h-11 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary" />
-                        ) : <div />}
+                      <div key={set.set_number}
+                        className={`flex items-center gap-2 py-1 transition-opacity ${set.completed ? 'opacity-40' : ''}`}>
+
+                        {/* Set number */}
+                        <span className="text-[11px] text-muted-foreground w-4 text-center shrink-0">{set.set_number}</span>
+
+                        {/* Steppers */}
+                        <div className="flex items-center gap-2 flex-1 justify-center">
+                          {isTimeBased ? (
+                            <TimeStepper
+                              value={set.time_seconds ?? 0}
+                              onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })}
+                            />
+                          ) : (
+                            <>
+                              <Stepper
+                                value={set.weight_kg ?? 0}
+                                onChange={v => updateSet(we.id, set.set_number, { weight_kg: v })}
+                                step={2.5}
+                                unit="kg"
+                                min={0}
+                              />
+                              <Stepper
+                                value={set.reps_completed ?? 0}
+                                onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })}
+                                step={1}
+                                min={0}
+                              />
+                            </>
+                          )}
+                        </div>
+
+                        {/* Big check button */}
                         <button onClick={() => toggleSetComplete(we.id, set.set_number)}
-                          className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all duration-200 ${isAnim ? 'scale-110' : ''} ${
-                            set.completed ? 'bg-primary/15 text-primary' : 'bg-background border border-border text-muted-foreground hover:border-primary/50'
+                          className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 ${isAnim ? 'scale-125' : ''} ${
+                            set.completed
+                              ? 'bg-success text-white'
+                              : 'bg-primary/10 text-primary border border-primary/20 active:scale-95'
                           }`}>
-                          <Check className="w-4 h-4" />
+                          <Check className={`${set.completed ? 'w-5 h-5' : 'w-4 h-4'}`} />
                         </button>
                       </div>
                     )
