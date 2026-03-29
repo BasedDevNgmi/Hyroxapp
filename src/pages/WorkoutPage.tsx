@@ -173,50 +173,71 @@ function PrehabSection() {
   )
 }
 
-/** Stepper: tap +/- to adjust a value. Shows the value large and centered. */
-function Stepper({ value, onChange, step, unit, min: minVal }: {
-  value: number; onChange: (v: number) => void; step: number; unit?: string; min?: number
+/** Compact stepper: tap +/- to adjust a value. Fits mobile screens. */
+function Stepper({ value, onChange, step, label, min: minVal }: {
+  value: number; onChange: (v: number) => void; step: number; label?: string; min?: number
 }) {
-  const decrement = () => onChange(Math.max(minVal ?? 0, value - step))
-  const increment = () => onChange(value + step)
+  const decrement = () => onChange(Math.max(minVal ?? 0, +(value - step).toFixed(1)))
+  const increment = () => onChange(+(value + step).toFixed(1))
   return (
-    <div className="flex items-center gap-0">
+    <div className="flex items-center gap-0 flex-1 min-w-0">
       <button onClick={decrement}
-        className="w-9 h-9 rounded-l-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
-        <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+        className="w-8 h-9 rounded-l-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors shrink-0">
+        <Minus className="w-3 h-3 text-muted-foreground" />
       </button>
-      <div className="h-9 min-w-[52px] px-1.5 bg-background border-y border-border flex items-center justify-center">
-        <span className="text-sm font-semibold tabular-nums">{value}{unit && <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{unit}</span>}</span>
+      <div className="h-9 flex-1 min-w-0 bg-background border-y border-border flex flex-col items-center justify-center px-1">
+        <span className="text-[13px] font-semibold tabular-nums leading-none">{value}</span>
+        {label && <span className="text-[8px] text-muted-foreground leading-none mt-0.5">{label}</span>}
       </div>
       <button onClick={increment}
-        className="w-9 h-9 rounded-r-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
-        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+        className="w-8 h-9 rounded-r-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors shrink-0">
+        <Plus className="w-3 h-3 text-muted-foreground" />
       </button>
     </div>
   )
 }
 
-/** Time stepper for cardio exercises (seconds) */
-function TimeStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const decrement = () => onChange(Math.max(0, value - 5))
-  const increment = () => onChange(value + 5)
-  const min = Math.floor(value / 60)
-  const sec = value % 60
-  return (
-    <div className="flex items-center gap-0">
-      <button onClick={decrement}
-        className="w-9 h-9 rounded-l-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
-        <Minus className="w-3.5 h-3.5 text-muted-foreground" />
-      </button>
-      <div className="h-9 min-w-[60px] px-1.5 bg-background border-y border-border flex items-center justify-center">
-        <span className="text-sm font-semibold tabular-nums">{min > 0 ? `${min}:${String(sec).padStart(2, '0')}` : `${sec}s`}</span>
-      </div>
-      <button onClick={increment}
-        className="w-9 h-9 rounded-r-lg bg-background border border-border flex items-center justify-center active:bg-secondary transition-colors">
-        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
-      </button>
-    </div>
-  )
+/** Format seconds as time display */
+function fmtTime(s: number) {
+  const min = Math.floor(s / 60)
+  const sec = s % 60
+  if (min > 0) return `${min}:${String(sec).padStart(2, '0')}`
+  return `${sec}s`
+}
+
+/**
+ * Determine what inputs an exercise needs based on its data fields.
+ * Returns: 'weight_reps' | 'reps_only' | 'time' | 'distance' | 'check_only'
+ */
+/**
+ * Determine what inputs an exercise needs based on its data fields.
+ * Returns: 'weight_reps' | 'time' | 'distance' | 'check_only'
+ */
+function getExerciseInputType(we: { reps: string | null; target_weight_kg: number | null; duration_seconds: number | null; distance_meters: number | null }): string {
+  const hasNumericReps = we.reps != null && /^\d+/.test(we.reps)
+  const hasTime = we.duration_seconds != null && we.duration_seconds > 0
+  const hasDistance = we.distance_meters != null && we.distance_meters > 0
+
+  // Numeric reps → always show weight + reps (user can track weight for anything)
+  if (hasNumericReps) return 'weight_reps'
+  if (hasTime) return 'time'
+  if (hasDistance) return 'distance'
+  return 'check_only' // e.g. "Max hold", non-numeric reps
+}
+
+/** Build a human-readable summary for the exercise header */
+function exerciseSummary(we: { sets: number; reps: string | null; duration_seconds: number | null; distance_meters: number | null; target_weight_kg: number | null; tempo: string | null }): string {
+  const parts: string[] = []
+  // Sets × metric
+  if (we.reps) parts.push(`${we.sets}\u00d7${we.reps}`)
+  else if (we.duration_seconds) parts.push(`${we.sets}\u00d7${fmtTime(we.duration_seconds)}`)
+  else if (we.distance_meters) parts.push(`${we.sets}\u00d7${we.distance_meters}m`)
+  else parts.push(`${we.sets} sets`)
+  // Weight
+  if (we.target_weight_kg) parts.push(`@ ${we.target_weight_kg}kg`)
+  // Tempo
+  if (we.tempo) parts.push(`\u00b7 ${we.tempo}`)
+  return parts.join(' ')
 }
 
 export default function WorkoutPage() {
@@ -243,16 +264,18 @@ export default function WorkoutPage() {
     if (draft) { setKneePain(draft.knee_pain_level); setRpe(draft.overall_rpe); setNotes(draft.notes); setExerciseLogs(draft.exercise_logs); return }
     const logs: ExerciseLogDraft[] = []
     for (const we of workout.workout_exercises) {
+      const inputType = getExerciseInputType(we)
       const targetWeight = we.target_weight_kg ? Number(we.target_weight_kg) : null
-      const targetReps = we.reps ? parseInt(we.reps) : null
+      const parsedReps = we.reps ? parseInt(we.reps) : null
+      const targetReps = parsedReps != null && !isNaN(parsedReps) ? parsedReps : null
       const targetTime = we.duration_seconds || null
       for (let s = 1; s <= we.sets; s++) {
         logs.push({
           workout_exercise_id: we.id,
           set_number: s,
-          weight_kg: targetWeight,
-          reps_completed: !isNaN(targetReps as number) ? targetReps : null,
-          time_seconds: targetTime,
+          weight_kg: inputType === 'weight_reps' ? (targetWeight ?? 0) : null,
+          reps_completed: inputType === 'weight_reps' ? (targetReps ?? 0) : null,
+          time_seconds: (inputType === 'time' || inputType === 'distance') ? (targetTime ?? 0) : null,
           completed: false,
           notes: '',
         })
@@ -408,7 +431,7 @@ export default function WorkoutPage() {
           const completedSets = sets.filter(s => s.completed).length
           const allDone = sets.length > 0 && completedSets === sets.length
           const isCollapsed = collapsedExercises.has(we.id)
-          const isTimeBased = !!we.duration_seconds
+          const inputType = getExerciseInputType(we)
 
           return (
             <div key={we.id} ref={el => { exerciseRefs.current[we.id] = el }}
@@ -433,10 +456,7 @@ export default function WorkoutPage() {
                       <p className={`text-[13px] font-medium truncate ${allDone ? 'text-muted-foreground line-through' : ''}`}>{exercise.name}</p>
                       <CategoryBadge category={exercise.category} />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      {we.sets}&times;{we.reps || `${we.duration_seconds}s`}
-                      {we.target_weight_kg && ` @ ${we.target_weight_kg}kg`}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground">{exerciseSummary(we)}</p>
                   </div>
                 </div>
                 {isCollapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />}
@@ -451,40 +471,33 @@ export default function WorkoutPage() {
                     const isAnim = animatingSetKey === `${we.id}-${set.set_number}`
                     return (
                       <div key={set.set_number}
-                        className={`flex items-center gap-2 py-1 transition-opacity ${set.completed ? 'opacity-40' : ''}`}>
+                        className={`flex items-center gap-1.5 py-1 transition-opacity ${set.completed ? 'opacity-40' : ''}`}>
 
                         {/* Set number */}
                         <span className="text-[11px] text-muted-foreground w-4 text-center shrink-0">{set.set_number}</span>
 
-                        {/* Steppers */}
-                        <div className="flex items-center gap-2 flex-1 justify-center">
-                          {isTimeBased ? (
-                            <TimeStepper
-                              value={set.time_seconds ?? 0}
-                              onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })}
-                            />
-                          ) : (
+                        {/* Input area — adapts to exercise type */}
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          {inputType === 'weight_reps' && (
                             <>
-                              <Stepper
-                                value={set.weight_kg ?? 0}
-                                onChange={v => updateSet(we.id, set.set_number, { weight_kg: v })}
-                                step={2.5}
-                                unit="kg"
-                                min={0}
-                              />
-                              <Stepper
-                                value={set.reps_completed ?? 0}
-                                onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })}
-                                step={1}
-                                min={0}
-                              />
+                              <Stepper value={set.weight_kg ?? 0} onChange={v => updateSet(we.id, set.set_number, { weight_kg: v })} step={2.5} label="kg" min={0} />
+                              <Stepper value={set.reps_completed ?? 0} onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })} step={1} label="reps" min={0} />
                             </>
+                          )}
+                          {inputType === 'time' && (
+                            <Stepper value={set.time_seconds ?? 0} onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })} step={5} label="sec" min={0} />
+                          )}
+                          {inputType === 'distance' && (
+                            <Stepper value={set.time_seconds ?? 0} onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })} step={5} label="sec" min={0} />
+                          )}
+                          {inputType === 'check_only' && (
+                            <div className="flex-1 text-[11px] text-muted-foreground px-2">{we.reps || 'Complete'}</div>
                           )}
                         </div>
 
-                        {/* Big check button */}
+                        {/* Check button */}
                         <button onClick={() => toggleSetComplete(we.id, set.set_number)}
-                          className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 ${isAnim ? 'scale-125' : ''} ${
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 ${isAnim ? 'scale-125' : ''} ${
                             set.completed
                               ? 'bg-success text-white'
                               : 'bg-primary/10 text-primary border border-primary/20 active:scale-95'
