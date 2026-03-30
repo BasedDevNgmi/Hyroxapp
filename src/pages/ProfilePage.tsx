@@ -6,8 +6,10 @@ import {
   Calendar,
   Loader2,
   Download,
+  Upload,
   Check,
   Target,
+  RotateCcw,
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -57,15 +59,57 @@ export default function ProfilePage() {
     setTimeout(() => setRmSaved(false), 2000)
   }
 
+  const handleStartToday = async () => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    setSaving(true)
+    await updateProfile({ program_start_date: today })
+    setStartDate(today)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   const handleExportData = () => {
-    const data = { profile, workout_logs: logs, exported_at: new Date().toISOString() }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const allData = {
+      profile,
+      workout_logs: logs,
+      exercise_logs: JSON.parse(localStorage.getItem('hyrox_exercise_logs') || '[]'),
+      exported_at: new Date().toISOString(),
+    }
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `training-data-${format(new Date(), 'yyyy-MM-dd')}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleImportData = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        if (data.profile) {
+          localStorage.setItem('hyrox_profile', JSON.stringify(data.profile))
+        }
+        if (data.workout_logs) {
+          localStorage.setItem('hyrox_workout_logs', JSON.stringify(data.workout_logs))
+        }
+        if (data.exercise_logs) {
+          localStorage.setItem('hyrox_exercise_logs', JSON.stringify(data.exercise_logs))
+        }
+        window.location.reload()
+      } catch {
+        alert('Invalid backup file')
+      }
+    }
+    input.click()
   }
 
   if (loading) {
@@ -148,17 +192,31 @@ export default function ProfilePage() {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : 'Save'}
           </button>
         </div>
+        <button onClick={handleStartToday}
+          className="w-full flex items-center justify-center gap-2 h-10 bg-secondary rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <RotateCcw className="w-3.5 h-3.5" /> Reset to Today (Week 1)
+        </button>
       </div>
 
-      {/* Export */}
-      <button onClick={handleExportData}
-        className="w-full flex items-center gap-4 p-4 bg-card rounded-xl hover:bg-card/80 transition-colors">
-        <Download className="w-5 h-5 text-muted-foreground" />
-        <div className="text-left">
-          <p className="text-sm font-medium">Export Data</p>
-          <p className="text-[10px] text-muted-foreground">Download training data as JSON</p>
-        </div>
-      </button>
+      {/* Data Management */}
+      <div className="space-y-2">
+        <button onClick={handleExportData}
+          className="w-full flex items-center gap-4 p-4 bg-card rounded-xl hover:bg-card/80 transition-colors">
+          <Download className="w-5 h-5 text-muted-foreground" />
+          <div className="text-left">
+            <p className="text-sm font-medium">Export Backup</p>
+            <p className="text-[10px] text-muted-foreground">Download all data as JSON</p>
+          </div>
+        </button>
+        <button onClick={handleImportData}
+          className="w-full flex items-center gap-4 p-4 bg-card rounded-xl hover:bg-card/80 transition-colors">
+          <Upload className="w-5 h-5 text-muted-foreground" />
+          <div className="text-left">
+            <p className="text-sm font-medium">Import Backup</p>
+            <p className="text-[10px] text-muted-foreground">Restore from a previous export</p>
+          </div>
+        </button>
+      </div>
 
       {/* Footer */}
       <div className="text-center pt-4">
