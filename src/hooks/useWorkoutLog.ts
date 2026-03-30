@@ -119,6 +119,45 @@ export function useWorkoutLog(workoutId: string) {
   return { saveWorkoutLog, saveDraft, loadDraft, clearDraft, saving, existingLog }
 }
 
+/**
+ * Build a map of exercise_id → last logged values (weight, reps, time)
+ * by scanning all past exercise logs and matching workout_exercise_ids
+ * back to their exercise_id via the program data.
+ */
+export function getLastLoggedByExercise(
+  allWorkoutExercises: { id: string; exercise_id: string }[],
+): Map<string, { weight_kg: number | null; reps_completed: number | null; time_seconds: number | null }> {
+  const weToExercise = new Map<string, string>()
+  for (const we of allWorkoutExercises) {
+    weToExercise.set(we.id, we.exercise_id)
+  }
+
+  const pastLogs = getAllExerciseLogs() as {
+    workout_exercise_id: string
+    completed: boolean
+    weight_kg: number | null
+    reps_completed: number | null
+    time_seconds: number | null
+  }[]
+
+  const result = new Map<string, { weight_kg: number | null; reps_completed: number | null; time_seconds: number | null }>()
+
+  // Iterate backwards (most recent first) and take first completed set per exercise
+  for (let i = pastLogs.length - 1; i >= 0; i--) {
+    const log = pastLogs[i]
+    if (!log.completed) continue
+    const exId = weToExercise.get(log.workout_exercise_id)
+    if (!exId || result.has(exId)) continue
+    result.set(exId, {
+      weight_kg: log.weight_kg,
+      reps_completed: log.reps_completed,
+      time_seconds: log.time_seconds,
+    })
+  }
+
+  return result
+}
+
 export function useWorkoutLogs() {
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)

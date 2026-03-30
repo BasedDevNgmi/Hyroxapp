@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkout } from '@/hooks/useProgram'
-import { useWorkoutLog, type ExerciseLogDraft } from '@/hooks/useWorkoutLog'
-import { getWorkoutByWeekDay } from '@/data/program'
+import { useWorkoutLog, getLastLoggedByExercise, type ExerciseLogDraft } from '@/hooks/useWorkoutLog'
+import { getWorkoutByWeekDay, allWorkouts } from '@/data/program'
 import {
   ArrowLeft,
   Check,
@@ -325,11 +325,16 @@ export default function WorkoutPage() {
   const exerciseRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Init: PRE-FILL all sets with target values so user just taps checkmarks
+  // Init: PRE-FILL all sets with target values (from program) or last logged values (from history)
   useEffect(() => {
     if (!workout) return
     const draft = loadDraft()
     if (draft) { setKneePain(draft.knee_pain_level); setRpe(draft.overall_rpe); setNotes(draft.notes); setExerciseLogs(draft.exercise_logs); return }
+
+    // Build last-logged values per exercise_id from past workout history
+    const allWEs = allWorkouts.flatMap(w => w.workout_exercises.map(we => ({ id: we.id, exercise_id: we.exercise_id })))
+    const lastLogged = getLastLoggedByExercise(allWEs)
+
     const logs: ExerciseLogDraft[] = []
     for (const we of workout.workout_exercises) {
       const inputType = getExerciseInputType(we)
@@ -337,13 +342,17 @@ export default function WorkoutPage() {
       const parsedReps = we.reps ? parseInt(we.reps) : null
       const targetReps = parsedReps != null && !isNaN(parsedReps) ? parsedReps : null
       const targetTime = we.duration_seconds || null
+
+      // Fallback: use last logged values for this exercise if no program target
+      const prev = lastLogged.get(we.exercise_id)
+
       for (let s = 1; s <= we.sets; s++) {
         logs.push({
           workout_exercise_id: we.id,
           set_number: s,
-          weight_kg: inputType === 'weight_reps' ? (targetWeight ?? 0) : null,
-          reps_completed: inputType === 'weight_reps' ? (targetReps ?? 0) : null,
-          time_seconds: (inputType === 'time' || inputType === 'distance') ? (targetTime ?? 0) : null,
+          weight_kg: inputType === 'weight_reps' ? (targetWeight ?? prev?.weight_kg ?? 0) : null,
+          reps_completed: inputType === 'weight_reps' ? (targetReps ?? prev?.reps_completed ?? 0) : null,
+          time_seconds: (inputType === 'time' || inputType === 'distance') ? (targetTime ?? prev?.time_seconds ?? 0) : null,
           completed: false,
           notes: '',
         })
