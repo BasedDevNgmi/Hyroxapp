@@ -88,8 +88,8 @@ function weeks21to24(w: number): Workout[] {
       workout_exercises: [
         we(`w${w}-5`, exercises.deadlift, 1, { sets: dl.sets, reps: dl.reps, target_weight_kg: dl.wt, notes: dl.note }),
         we(`w${w}-5`, exercises.front_squat, 2, { sets: 3, reps: '4', target_weight_kg: Math.round(sq1rm * 0.72 / 2.5) * 2.5, notes: '72%' }),
-        we(`w${w}-5`, exercises.sled_push, 3, { sets: 6, notes: 'Full distance race pace' }),
-        we(`w${w}-5`, exercises.sled_pull, 4, { sets: 6, notes: 'Full distance race pace' }),
+        we(`w${w}-5`, exercises.sled_push, 3, { sets: 6, distance_meters: 50, notes: 'Full distance race pace' }),
+        we(`w${w}-5`, exercises.sled_pull, 4, { sets: 6, distance_meters: 50, notes: 'Full distance race pace' }),
         we(`w${w}-5`, exercises.wall_balls, 5, { sets: 1, reps: '75', notes: 'Ononderbroken poging!' }),
         we(`w${w}-5`, exercises.dead_hang, 6, { sets: 1, reps: 'Max hold', notes: 'Grip finisher' }),
         we(`w${w}-5`, exercises.towel_pullups, 7, { sets: 3, reps: 'Max' }),
@@ -106,8 +106,8 @@ function weeks21to24(w: number): Workout[] {
       ] : [
         we(`w${w}-6`, exercises.running, 1, { sets: 8, distance_meters: 1000, rest_seconds: 60, notes: '8× 1km @ 4:10-4:20, 60s rust' }),
         we(`w${w}-6`, exercises.wall_balls, 2, { sets: 1, reps: '50', notes: 'Na runs — race pace' }),
-        we(`w${w}-6`, exercises.sled_push, 3, { sets: 2, notes: 'Race pace' }),
-        we(`w${w}-6`, exercises.sled_pull, 4, { sets: 2, notes: 'Race pace' }),
+        we(`w${w}-6`, exercises.sled_push, 3, { sets: 2, distance_meters: 50, notes: 'Race pace' }),
+        we(`w${w}-6`, exercises.sled_pull, 4, { sets: 2, distance_meters: 50, notes: 'Race pace' }),
       ],
     },
   ]
@@ -173,7 +173,7 @@ function weeks25to28(w: number): Workout[] {
       ] : [
         we(`w${w}-2`, exercises.running, 1, { sets: 6, distance_meters: 1000, notes: '6× 1km @ 4:05/km' }),
         we(`w${w}-2`, exercises.wall_balls, 2, { sets: 1, reps: '75', notes: 'Na runs — race pace' }),
-        we(`w${w}-2`, exercises.sled_push, 3, { sets: 2, notes: 'Race pace' }),
+        we(`w${w}-2`, exercises.sled_push, 3, { sets: 2, distance_meters: 50, notes: 'Race pace' }),
       ],
     },
     // ── WO: Upper — Peak Bench ──
@@ -206,8 +206,8 @@ function weeks25to28(w: number): Workout[] {
         we(`w${w}-5`, exercises.wall_balls, 5, { sets: 1, reps: '100', notes: 'For time — noteer' }),
       ] : [
         we(`w${w}-5`, exercises.deadlift, 1, { sets: dl.sets, reps: dl.reps, target_weight_kg: dl.wt, notes: dl.note }),
-        we(`w${w}-5`, exercises.sled_push, 2, { sets: 3, notes: 'Race weight, race pace' }),
-        we(`w${w}-5`, exercises.sled_pull, 3, { sets: 3 }),
+        we(`w${w}-5`, exercises.sled_push, 2, { sets: 3, distance_meters: 50, notes: 'Race weight, race pace' }),
+        we(`w${w}-5`, exercises.sled_pull, 3, { sets: 3, distance_meters: 50 }),
         we(`w${w}-5`, exercises.wall_balls, 4, { sets: 1, reps: '75', notes: 'Ononderbroken poging' }),
       ],
     },

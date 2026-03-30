@@ -25,8 +25,8 @@ function weeks29to34(w: number): Workout[] {
         we(`w${w}-1`, exercises.back_squat, 1, { sets: 3, reps: '3', target_weight_kg: sqMaint, notes: `~${Math.round(sqMaint / 140 * 100)}% 1RM — onderhoud` }),
         we(`w${w}-1`, exercises.deadlift, 2, { sets: 3, reps: '2', target_weight_kg: dlMaint, notes: `~${Math.round(dlMaint / 180 * 100)}% 1RM — onderhoud` }),
         we(`w${w}-1`, exercises.farmers_carry, 3, { sets: 1, distance_meters: 200, notes: 'Ononderbroken race-pace' }),
-        we(`w${w}-1`, exercises.sled_push, 4, { sets: 3, notes: 'Full distance, race pace' }),
-        we(`w${w}-1`, exercises.sled_pull, 5, { sets: 3, notes: 'Full distance, race pace' }),
+        we(`w${w}-1`, exercises.sled_push, 4, { sets: 3, distance_meters: 50, notes: 'Full distance, race pace' }),
+        we(`w${w}-1`, exercises.sled_pull, 5, { sets: 3, distance_meters: 50, notes: 'Full distance, race pace' }),
       ],
     },
     // ── DI: Hybrid Run + Stations ──

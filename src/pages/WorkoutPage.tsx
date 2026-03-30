@@ -273,22 +273,25 @@ function fmtTime(s: number) {
 
 /**
  * Determine what inputs an exercise needs based on its data fields.
- * Returns: 'weight_reps' | 'reps_only' | 'time' | 'distance' | 'check_only'
- */
-/**
- * Determine what inputs an exercise needs based on its data fields.
  * Returns: 'weight_reps' | 'time' | 'distance' | 'check_only'
  */
 function getExerciseInputType(we: { reps: string | null; target_weight_kg: number | null; duration_seconds: number | null; distance_meters: number | null }): string {
-  const hasNumericReps = we.reps != null && /^\d+/.test(we.reps)
+  const reps = we.reps?.trim() ?? ''
+  const hasNumericReps = /^\d+/.test(reps)
+  const isMaxHold = /max\s*hold/i.test(reps)
+  const isMax = /^max$/i.test(reps)
   const hasTime = we.duration_seconds != null && we.duration_seconds > 0
   const hasDistance = we.distance_meters != null && we.distance_meters > 0
 
-  // Numeric reps → always show weight + reps (user can track weight for anything)
+  // "Max hold" → log duration (seconds held)
+  if (isMaxHold) return 'time'
+  // Numeric reps → always show weight + reps
   if (hasNumericReps) return 'weight_reps'
+  // "Max" reps → show weight + reps (e.g. pull-ups max, towel pull-ups max)
+  if (isMax) return 'weight_reps'
   if (hasTime) return 'time'
   if (hasDistance) return 'distance'
-  return 'check_only' // e.g. "Max hold", non-numeric reps
+  return 'check_only'
 }
 
 /** Build a human-readable summary for the exercise header */
