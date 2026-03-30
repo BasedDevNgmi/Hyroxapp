@@ -11,11 +11,11 @@ import { phase5Workouts } from './phase5-taper'
 
 // ── Programs (5 phases) ──────────────────────────────
 export const programs: Program[] = [
-  { id: 'p1', name: 'Phase 1: Foundation',  description: 'Linear strength progression, run/walk buildup, hypertrophy, grip & core. Goal: Squat ~118kg / Deadlift ~152kg / 30 min continuous run.', week_start: 1,  week_end: 12, order_index: 1 },
-  { id: 'p2', name: 'Phase 2: Buildup',     description: '5/3/1 strength progression, run volume up, station-specific work under fatigue. Goal: Squat ~130kg / Deadlift ~168kg / 8km TT < 34 min.', week_start: 13, week_end: 20, order_index: 2 },
-  { id: 'p3', name: 'Phase 3: Intensity',   description: 'Second peak cycle, race-pace work, first full Hyrox simulation. Goal: Squat ~140kg / Deadlift ~178kg / Sim sub 1:25.', week_start: 21, week_end: 28, order_index: 3 },
-  { id: 'p4', name: 'Phase 4: Race Prep',   description: 'Strength maintenance at peak, full Hyrox simulations, race strategy. Goal: Maintain 140/180, sim sub 1:22.', week_start: 29, week_end: 38, order_index: 4 },
-  { id: 'p5', name: 'Phase 5: Taper',       description: 'Volume down, nervous system fresh, supercompensation. Race day: Sub 1:20 Hyrox Amsterdam 2027.', week_start: 39, week_end: 42, order_index: 5 },
+  { id: 'p1', name: 'Fase 1: Fundament',    description: 'Lineaire krachtopbouw, run/walk → continu, hypertrofie, grip & burpee techniek. Doel: Squat ~118kg / Deadlift ~152kg / 30 min pijnvrij lopen.', week_start: 1,  week_end: 12, order_index: 1 },
+  { id: 'p2', name: 'Fase 2: Opbouw',       description: '5/3/1 kracht, intervals, station-werk onder vermoeidheid, 1e kracht peak (wk 20). Doel: Squat ~130kg / Deadlift ~168kg / 8km TT sub 34 min.', week_start: 13, week_end: 20, order_index: 2 },
+  { id: 'p3', name: 'Fase 3: Intensiteit',  description: '2e kracht peak = GROTE TEST (wk 28), volledige sims, race-pace runs. Doel: Squat 140+ / Deadlift 180+ / Sim sub 1:25.', week_start: 21, week_end: 28, order_index: 3 },
+  { id: 'p4', name: 'Fase 4: Race Prep',    description: 'Kracht ONDERHOUD (PRs in pocket), volledige sims sub 1:22, race-strategie, mentale hardheid. Doel: sim sub 1:20 (wk 37).', week_start: 29, week_end: 38, order_index: 4 },
+  { id: 'p5', name: 'Fase 5: Taper',        description: 'Volume -40-60%, kracht behouden, fris en scherp. Race: Hyrox Amsterdam 2027 — Sub 1:20.', week_start: 39, week_end: 42, order_index: 5 },
 ]
 
 // ── All workouts (210 total) ─────────────────────────

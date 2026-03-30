@@ -43,4 +43,5 @@ export const PREHAB_ITEMS = [
   'Ankle mobility (knee-over-toe at wall): 2×20/side',
   'Copenhagen adductors: 2×8/side',
   'Single-leg glute bridges: 2×12/side',
+  '90/90 hip stretch: 30 sec/side',
 ]

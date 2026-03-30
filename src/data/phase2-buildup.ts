@@ -3,20 +3,18 @@ import { we } from './helpers'
 import type { Workout } from '@/hooks/useProgram'
 
 // ═══════════════════════════════════════════════════════════
-// PHASE 2: BUILDUP (Weeks 13-20)
-// 5/3/1 style progression, run volume up, station-specific under fatigue.
+// PHASE 2: OPBOUW (Weeks 13-20)
+// 5/3/1 golven. Hypertrofie blijft. Eerste peak test week 20.
 // Estimated 1RM start: Squat ~118kg, Deadlift ~152kg
-// Goal: Squat ~130kg / Deadlift ~168kg / 8km TT < 34 min
+// Goal: Squat ~130kg / Deadlift ~168kg / 8km TT sub 34 min
 // ═══════════════════════════════════════════════════════════
 
-// Weeks 13-16: Volume + Strength (5/3/1 waves)
+// Weeks 13-16: Volume + Kracht (5/3/1 waves)
 function weeks13to16(w: number): Workout[] {
-  // 5/3/1 wave based on ~118kg squat, ~152kg DL
   const sq1rm = 118
   const dl1rm = 152
   const isDeload = w === 16
 
-  // 5/3/1 squat weights
   const sqConfig: Record<number, { sets: number; reps: string; wt: number; note: string }> = {
     13: { sets: 5, reps: '5', wt: Math.round(sq1rm * 0.78 / 2.5) * 2.5, note: '5s week — 78% 1RM' },
     14: { sets: 4, reps: '3', wt: Math.round(sq1rm * 0.85 / 2.5) * 2.5, note: '3s week — 85% 1RM' },
@@ -33,179 +31,189 @@ function weeks13to16(w: number): Workout[] {
   const dl = dlConfig[w]
 
   return [
-    // Monday - Lower Heavy (5/3/1 Squat)
+    // ── MA: Lower Kracht — 5/3/1 Squat ──
     {
       id: `w${w}-1`, program_id: 'p2', week_number: w, day_number: 1,
-      name: 'Lower Heavy — 5/3/1', focus: 'Squat Wave',
-      notes: isDeload ? 'DELOAD WEEK: reduced volume.' : `5/3/1 cycle — ${sq.note}`,
+      name: 'Lower Kracht — 5/3/1', focus: 'Squat Wave + Lunges + Grip + Burpees',
+      notes: isDeload ? 'DELOAD WEEK: verminderd volume.' : `5/3/1 cyclus — ${sq.note}`,
       workout_exercises: [
         we(`w${w}-1`, exercises.back_squat, 1, { sets: sq.sets, reps: sq.reps, target_weight_kg: sq.wt, notes: sq.note }),
-        we(`w${w}-1`, exercises.leg_press, 2, { sets: isDeload ? 2 : 4, reps: '10', notes: 'Hypertrophy' }),
-        we(`w${w}-1`, exercises.rdl, 3, { sets: isDeload ? 3 : 4, reps: '6', notes: 'Heavy' }),
-        we(`w${w}-1`, exercises.ghr, 4, { sets: 3, reps: '8', notes: 'Or Nordic curl' }),
-        we(`w${w}-1`, exercises.farmers_carry, 5, { sets: 5, distance_meters: 50, notes: 'Race weight — focus on SPEED' }),
-        we(`w${w}-1`, exercises.ab_wheel, 6, { sets: 3, reps: '12' }),
-        we(`w${w}-1`, exercises.dead_bug, 7, { sets: 3, reps: '10/side' }),
+        we(`w${w}-1`, exercises.leg_press, 2, { sets: isDeload ? 2 : 4, reps: '10', notes: 'Hypertrofie' }),
+        we(`w${w}-1`, exercises.ghr, 3, { sets: 3, reps: '8', notes: 'Of Nordic curl' }),
+        we(`w${w}-1`, exercises.sandbag_lunges, 4, { sets: 5, distance_meters: 20, notes: 'Race weight — focus SNELHEID, tel stappen' }),
+        we(`w${w}-1`, exercises.farmers_carry, 5, { sets: 5, distance_meters: 50, notes: 'Race weight op snelheid' }),
+        we(`w${w}-1`, exercises.fat_grip_hang, 6, { sets: 2, reps: 'Max hold' }),
+        we(`w${w}-1`, exercises.deadlift, 7, { sets: 3, reps: '5', notes: 'Fat grip DL — grip specifiek' }),
+        we(`w${w}-1`, exercises.burpee_broad, 8, { sets: 5, reps: '5', notes: '+ 40m time trial 1x/week (doel: sub 2:45)' }),
+        we(`w${w}-1`, exercises.pallof_press, 9, { sets: 3, reps: '10/side', notes: 'Zwaar' }),
+        we(`w${w}-1`, exercises.dead_bug, 10, { sets: 3, reps: '10/side', notes: 'Met gewicht' }),
       ],
     },
-    // Tuesday - Run + Hyrox
+    // ── DI: Hybrid Run + Stations ──
     {
       id: `w${w}-2`, program_id: 'p2', week_number: w, day_number: 2,
       name: 'Tempo Run + Stations', focus: 'Threshold + Station Work',
-      notes: isDeload ? 'Easy run only — recovery week.' : 'Middle block at threshold pace.',
+      notes: isDeload ? 'Easy run alleen — recovery week.' : 'Middenblok op threshold pace.',
       workout_exercises: isDeload ? [
         we(`w${w}-2`, exercises.running, 1, { sets: 1, duration_seconds: 1800, notes: '30 min easy' }),
       ] : [
-        we(`w${w}-2`, exercises.running, 1, { sets: 1, duration_seconds: 2400, notes: '35-40 min — middle 15 min @ 4:40-4:50/km' }),
-        we(`w${w}-2`, exercises.skierg, 2, { sets: 5, distance_meters: 1000, rest_seconds: 60, notes: 'Record splits!' }),
-        we(`w${w}-2`, exercises.wall_balls, 3, { sets: 1, reps: '100', notes: '100 reps for time — goal: sets of 20+' }),
-        we(`w${w}-2`, exercises.sled_push, 4, { sets: 3, notes: 'Back and forth with sled pull' }),
-        we(`w${w}-2`, exercises.sled_pull, 5, { sets: 3 }),
+        we(`w${w}-2`, exercises.running, 1, { sets: 1, duration_seconds: 2400, notes: '35-40 min — middenblok 15 min @ 4:40-4:50/km' }),
+        we(`w${w}-2`, exercises.skierg, 2, { sets: 5, distance_meters: 1000, rest_seconds: 60, notes: 'Target: sub 3:45 — noteer splits!' }),
+        we(`w${w}-2`, exercises.wall_balls, 3, { sets: 1, reps: '100', notes: '100 reps for time — doel: sub 4:30, sets van 20+' }),
+        we(`w${w}-2`, exercises.sled_push, 4, { sets: 3, notes: 'Race weight, heen en weer met pull' }),
+        we(`w${w}-2`, exercises.sled_pull, 5, { sets: 3, notes: 'Race weight, tempo' }),
+        we(`w${w}-2`, exercises.rowerg, 6, { sets: 3, distance_meters: 1000, rest_seconds: 90, notes: 'Target: sub 3:50' }),
       ],
     },
-    // Wednesday - Upper Heavy (5/3/1 Bench)
+    // ── WO: Upper Kracht — 5/3/1 Bench ──
     {
       id: `w${w}-3`, program_id: 'p2', week_number: w, day_number: 3,
-      name: 'Upper Heavy — 5/3/1', focus: 'Bench Wave + Pull',
-      notes: isDeload ? 'DELOAD: light upper work.' : `5/3/1 bench wave — same schema as squat.`,
+      name: 'Upper Kracht — 5/3/1', focus: 'Bench Wave + Pull',
+      notes: isDeload ? 'DELOAD: licht upper work.' : `5/3/1 bench wave — zelfde schema als squat.`,
       workout_exercises: [
         we(`w${w}-3`, exercises.bench_press, 1, { sets: sq.sets, reps: sq.reps, notes: `5/3/1 — ${sq.note}` }),
-        we(`w${w}-3`, exercises.ohp, 2, { sets: 4, reps: '5', notes: 'Heavy, progressive' }),
+        we(`w${w}-3`, exercises.ohp, 2, { sets: 4, reps: '5', notes: 'Zwaar, progressief' }),
         we(`w${w}-3`, exercises.weighted_pullups, 3, { sets: 5, reps: '5' }),
-        we(`w${w}-3`, exercises.barbell_row, 4, { sets: 4, reps: '6' }),
+        we(`w${w}-3`, exercises.pendlay_row, 4, { sets: 4, reps: '6' }),
         we(`w${w}-3`, exercises.db_incline_press, 5, { sets: 3, reps: '10' }),
         we(`w${w}-3`, exercises.chest_supported, 6, { sets: 3, reps: '12' }),
         we(`w${w}-3`, exercises.ez_curl, 7, { sets: 3, reps: '12', notes: 'Superset' }),
         we(`w${w}-3`, exercises.skull_crusher, 8, { sets: 3, reps: '12' }),
+        we(`w${w}-3`, exercises.face_pulls, 9, { sets: 3, reps: '15' }),
       ],
     },
-    // Friday - Lower Hypertrophy + Hyrox (5/3/1 Deadlift)
+    // ── VR: Lower — 5/3/1 Deadlift + Hyrox ──
     {
       id: `w${w}-5`, program_id: 'p2', week_number: w, day_number: 5,
       name: 'Lower — 5/3/1 Deadlift + Hyrox', focus: 'Deadlift Wave + Stations',
-      notes: isDeload ? 'DELOAD: reduced volume.' : dl.note,
+      notes: isDeload ? 'DELOAD: verminderd volume.' : dl.note,
       workout_exercises: [
         we(`w${w}-5`, exercises.deadlift, 1, { sets: dl.sets, reps: dl.reps, target_weight_kg: dl.wt, notes: dl.note }),
         we(`w${w}-5`, exercises.front_squat, 2, { sets: isDeload ? 2 : 4, reps: '5', target_weight_kg: Math.round(sq1rm * 0.70 / 2.5) * 2.5, notes: '70% squat' }),
-        we(`w${w}-5`, exercises.sandbag_lunges, 3, { sets: 5, distance_meters: 20, notes: 'Race weight — tempo!' }),
-        we(`w${w}-5`, exercises.hip_thrust, 4, { sets: 4, reps: '8', notes: 'Heavy' }),
-        we(`w${w}-5`, exercises.leg_curl, 5, { sets: 3, reps: '12' }),
-        we(`w${w}-5`, exercises.burpee_broad, 6, { sets: 5, reps: '8', notes: 'Rhythm 4+4, minimal rest' }),
+        we(`w${w}-5`, exercises.hip_thrust, 3, { sets: 4, reps: '8', notes: 'Zwaar' }),
+        we(`w${w}-5`, exercises.burpee_broad, 4, { sets: 4, reps: '6', notes: 'Onder lichte vermoeidheid (na sled work)' }),
+        we(`w${w}-5`, exercises.towel_pullups, 5, { sets: 3, reps: 'Max' }),
+        we(`w${w}-5`, exercises.dead_hang, 6, { sets: 3, reps: 'Max hold' }),
+        we(`w${w}-5`, exercises.plate_pinch, 7, { sets: 3, duration_seconds: 25 }),
+        we(`w${w}-5`, exercises.wall_balls, 8, { sets: 2, reps: '40', notes: 'Ononderbroken — push de ceiling' }),
       ],
     },
-    // Saturday - Hyrox Simulation
+    // ── ZA: Hyrox Pairs ──
     {
       id: `w${w}-6`, program_id: 'p2', week_number: w, day_number: 6,
-      name: 'Hyrox Pairs', focus: 'Run + Station Transitions',
-      notes: isDeload ? 'Easy — half distance only.' : 'Race tempo — practice run→station transitions.',
+      name: 'Hyrox Pairs', focus: 'Run + Station Transities',
+      notes: isDeload ? 'Easy — halve afstand.' : 'Race tempo — oefen run→station transitie: DIRECT door.',
       workout_exercises: isDeload ? [
         we(`w${w}-6`, exercises.running, 1, { sets: 1, duration_seconds: 1800, notes: '30 min easy run' }),
       ] : [
-        we(`w${w}-6`, exercises.running, 1, { sets: 1, duration_seconds: 2700, notes: '40-45 min easy warm-up run' }),
-        we(`w${w}-6`, exercises.running, 2, { sets: 5, distance_meters: 1000, notes: 'Hyrox-pairs: 1km + 1 station, ×4-5' }),
-        we(`w${w}-6`, exercises.sled_push, 3, { sets: 1, notes: 'Rotate stations each week' }),
+        we(`w${w}-6`, exercises.running, 1, { sets: 1, duration_seconds: 2700, notes: '40-45 min easy warm-up/cool-down' }),
+        we(`w${w}-6`, exercises.running, 2, { sets: 5, distance_meters: 1000, notes: 'Hyrox-pairs: 1km + 1 station, ×5 (roteer stations per week)' }),
+        we(`w${w}-6`, exercises.sled_push, 3, { sets: 1, notes: 'Roteer stations per week' }),
         we(`w${w}-6`, exercises.farmers_carry, 4, { sets: 1, distance_meters: 200 }),
         we(`w${w}-6`, exercises.walking_lunges, 5, { sets: 1, distance_meters: 100 }),
-        we(`w${w}-6`, exercises.burpee_broad, 6, { sets: 1, distance_meters: 80 }),
+        we(`w${w}-6`, exercises.burpee_broad, 6, { sets: 1, distance_meters: 80, notes: w === 14 ? 'BENCHMARK: 80m for time' : null }),
       ],
     },
   ]
 }
 
-// Weeks 17-20: Peak Attempt #1
+// Weeks 17-20: Kracht Peak #1
 function weeks17to20(w: number): Workout[] {
   const sq1rm = 118
   const dl1rm = 152
   const isTest = w === 20
 
   const sqConfig: Record<number, { sets: number; reps: string; wt: number; note: string }> = {
-    17: { sets: 3, reps: '3', wt: Math.round(sq1rm * 0.87 / 2.5) * 2.5, note: '87% — building to test' },
-    18: { sets: 3, reps: '3', wt: Math.round(sq1rm * 0.90 / 2.5) * 2.5, note: '90% — heavy triples' },
+    17: { sets: 3, reps: '3', wt: Math.round(sq1rm * 0.87 / 2.5) * 2.5, note: '87% — opbouw naar test' },
+    18: { sets: 3, reps: '3', wt: Math.round(sq1rm * 0.90 / 2.5) * 2.5, note: '90% — zware triples' },
     19: { sets: 2, reps: '2', wt: Math.round(sq1rm * 0.92 / 2.5) * 2.5, note: '92% — peak doubles' },
-    20: { sets: 1, reps: '1-2RM TEST', wt: 0, note: 'TEST DAY — work to 1-2RM' },
+    20: { sets: 1, reps: '1-2RM TEST', wt: 0, note: 'TEST DAG — werk naar 1-2RM' },
   }
   const dlConfig: Record<number, { sets: number; reps: string; wt: number; note: string }> = {
     17: { sets: 3, reps: '3', wt: Math.round(dl1rm * 0.87 / 2.5) * 2.5, note: '87%' },
     18: { sets: 3, reps: '3', wt: Math.round(dl1rm * 0.90 / 2.5) * 2.5, note: '90%' },
     19: { sets: 2, reps: '2', wt: Math.round(dl1rm * 0.92 / 2.5) * 2.5, note: '92%' },
-    20: { sets: 1, reps: '1-2RM TEST', wt: 0, note: 'TEST DAY — work to 1-2RM' },
+    20: { sets: 1, reps: '1-2RM TEST', wt: 0, note: 'TEST DAG — werk naar 1-2RM' },
   }
   const sq = sqConfig[w]
   const dl = dlConfig[w]
 
   return [
-    // Monday - Lower Heavy (Peak Squat)
+    // ── MA: Lower — Peak Squat ──
     {
       id: `w${w}-1`, program_id: 'p2', week_number: w, day_number: 1,
-      name: isTest ? 'Lower — 2RM Test (Squat)' : 'Lower Heavy — Peak Build',
-      focus: isTest ? '1-2RM Squat Test' : 'Heavy Squat',
-      notes: isTest ? 'TEST WEEK: Warm up thoroughly → work to 1-2RM squat. Expected: ~125-130kg.' : sq.note,
+      name: isTest ? 'Lower — 2RM Test (Squat)' : 'Lower Kracht — Peak Build',
+      focus: isTest ? '1-2RM Squat Test' : 'Zware Squat',
+      notes: isTest ? 'TEST WEEK: Warm up grondig → werk naar 1-2RM squat. Verwacht: ~125-130kg.' : sq.note,
       workout_exercises: isTest ? [
-        we(`w${w}-1`, exercises.back_squat, 1, { sets: 1, reps: '1-2RM TEST', notes: 'Warm up: bar → 60 → 80 → 100 → 110 → 120 → attempt' }),
-        we(`w${w}-1`, exercises.farmers_carry, 2, { sets: 3, distance_meters: 50, notes: 'Light — just move after test' }),
+        we(`w${w}-1`, exercises.back_squat, 1, { sets: 1, reps: '1-2RM TEST', notes: 'Warm up: bar → 60 → 80 → 100 → 110 → 120 → poging' }),
+        we(`w${w}-1`, exercises.farmers_carry, 2, { sets: 5, distance_meters: 50, notes: 'BOVEN race weight' }),
       ] : [
         we(`w${w}-1`, exercises.back_squat, 1, { sets: sq.sets, reps: sq.reps, target_weight_kg: sq.wt, notes: sq.note }),
-        we(`w${w}-1`, exercises.leg_press, 2, { sets: 3, reps: '8', notes: 'Light accessories — save energy' }),
-        we(`w${w}-1`, exercises.farmers_carry, 3, { sets: 5, distance_meters: 50, notes: 'ABOVE race weight' }),
+        we(`w${w}-1`, exercises.leg_press, 2, { sets: 3, reps: '8', notes: 'Lichte accessories — spaar energie' }),
+        we(`w${w}-1`, exercises.farmers_carry, 3, { sets: 5, distance_meters: 50, notes: 'BOVEN race weight' }),
       ],
     },
-    // Tuesday - Run + Hyrox
+    // ── DI: Intervals + Stations ──
     {
       id: `w${w}-2`, program_id: 'p2', week_number: w, day_number: 2,
-      name: isTest ? '8km Time Trial' : 'Interval Run + Stations',
-      focus: isTest ? '8km TT — Goal: sub 34 min' : 'Speed Intervals',
-      notes: isTest ? 'ALL OUT 8km time trial instead of simulation. Goal: sub 34 min!' : null,
+      name: isTest ? '8km Time Trial + Station Tests' : 'Interval Run + Stations',
+      focus: isTest ? '8km TT — Doel: sub 34 min' : 'Speed Intervals',
+      notes: isTest ? 'RE-TEST alle station benchmarks! 8km time trial!' : null,
       workout_exercises: isTest ? [
-        we(`w${w}-2`, exercises.running, 1, { sets: 1, distance_meters: 8000, notes: '8km TIME TRIAL — goal: sub 34 min (4:15/km avg)' }),
+        we(`w${w}-2`, exercises.running, 1, { sets: 1, distance_meters: 8000, notes: '8km TIME TRIAL — doel: sub 34 min (4:15/km gem)' }),
       ] : [
-        we(`w${w}-2`, exercises.running, 1, { sets: 8, distance_meters: 800, rest_seconds: 90, notes: '6-8× 800m @ 4:00-4:10/km, 90s walk rest' }),
-        we(`w${w}-2`, exercises.rowerg, 2, { sets: 4, distance_meters: 1000, rest_seconds: 60, notes: 'Goal: <3:50 per 1000m' }),
-        we(`w${w}-2`, exercises.wall_balls, 3, { sets: 1, reps: '100', notes: 'Goal: unbroken!' }),
+        we(`w${w}-2`, exercises.running, 1, { sets: 8, distance_meters: 800, rest_seconds: 75, notes: '8× 800m @ 4:00-4:10/km, 75s walk rust' }),
+        we(`w${w}-2`, exercises.rowerg, 2, { sets: 4, distance_meters: 1000, rest_seconds: 60, notes: 'Doel: sub 3:50 per 1000m' }),
+        we(`w${w}-2`, exercises.skierg, 3, { sets: 4, distance_meters: 1000, rest_seconds: 60, notes: 'Doel: sub 3:40' }),
+        we(`w${w}-2`, exercises.wall_balls, 4, { sets: 1, reps: '100', notes: 'Doel: sub 4:15' }),
       ],
     },
-    // Wednesday - Upper Heavy (Peak Bench)
+    // ── WO: Upper — Peak Bench ──
     {
       id: `w${w}-3`, program_id: 'p2', week_number: w, day_number: 3,
-      name: isTest ? 'Upper — 2RM Test (Bench)' : 'Upper Heavy — Peak Build',
-      focus: isTest ? '1-2RM Bench Test' : 'Heavy Pressing',
-      notes: isTest ? 'TEST: Work to 1-2RM bench.' : 'Minimal accessories — save energy for lower tests.',
+      name: isTest ? 'Upper — 2RM Test (Bench)' : 'Upper Kracht — Peak Build',
+      focus: isTest ? '1-2RM Bench Test' : 'Zwaar Persen',
+      notes: isTest ? 'TEST: Werk naar 1-2RM bench.' : 'Minimaal accessories — spaar energie.',
       workout_exercises: isTest ? [
-        we(`w${w}-3`, exercises.bench_press, 1, { sets: 1, reps: '1-2RM TEST', notes: 'Warm up thoroughly → attempt' }),
-        we(`w${w}-3`, exercises.pullups, 2, { sets: 3, reps: 'Max', notes: 'Light pulling — that\'s all' }),
+        we(`w${w}-3`, exercises.bench_press, 1, { sets: 1, reps: '1-2RM TEST', notes: 'Warm up grondig → poging' }),
+        we(`w${w}-3`, exercises.pullups, 2, { sets: 3, reps: 'Max', notes: 'Licht trekken — dat is alles' }),
       ] : [
-        we(`w${w}-3`, exercises.bench_press, 1, { sets: sq.sets, reps: sq.reps, notes: `Building to test — ${sq.note}` }),
-        we(`w${w}-3`, exercises.ohp, 2, { sets: 3, reps: '3', notes: 'Heavy' }),
+        we(`w${w}-3`, exercises.bench_press, 1, { sets: sq.sets, reps: sq.reps, notes: `Opbouw naar test — ${sq.note}` }),
+        we(`w${w}-3`, exercises.ohp, 2, { sets: 3, reps: '3', notes: 'Zwaar' }),
         we(`w${w}-3`, exercises.weighted_pullups, 3, { sets: 3, reps: 'Max' }),
-        we(`w${w}-3`, exercises.barbell_row, 4, { sets: 4, reps: '5', notes: 'Heavy' }),
+        we(`w${w}-3`, exercises.barbell_row, 4, { sets: 4, reps: '5', notes: 'Zwaar' }),
       ],
     },
-    // Friday - Lower (Peak Deadlift or Test)
+    // ── VR: Lower — Peak Deadlift ──
     {
       id: `w${w}-5`, program_id: 'p2', week_number: w, day_number: 5,
       name: isTest ? 'Lower — 2RM Test (Deadlift)' : 'Lower — Peak Deadlift',
-      focus: isTest ? '1-2RM Deadlift Test' : 'Heavy Deadlift',
-      notes: isTest ? 'TEST WEEK: Work to 1-2RM deadlift. Expected: ~165-170kg.' : dl.note,
+      focus: isTest ? '1-2RM Deadlift Test' : 'Zware Deadlift',
+      notes: isTest ? 'TEST WEEK: Werk naar 1-2RM deadlift. Verwacht: ~165-170kg.' : dl.note,
       workout_exercises: isTest ? [
-        we(`w${w}-5`, exercises.deadlift, 1, { sets: 1, reps: '1-2RM TEST', notes: 'Warm up: bar → 60 → 100 → 120 → 140 → 150 → attempt' }),
-        we(`w${w}-5`, exercises.sled_push, 2, { sets: 2, notes: 'Light — race distance, moderate effort' }),
+        we(`w${w}-5`, exercises.deadlift, 1, { sets: 1, reps: '1-2RM TEST', notes: 'Warm up: bar → 60 → 100 → 120 → 140 → 150 → poging' }),
+        we(`w${w}-5`, exercises.sled_push, 2, { sets: 2, notes: 'Licht — race distance, matige effort' }),
         we(`w${w}-5`, exercises.sled_pull, 3, { sets: 2, notes: 'Race distance' }),
+        we(`w${w}-5`, exercises.burpee_broad, 4, { sets: 1, distance_meters: 80, notes: '80m for time — doel: sub 5:30' }),
       ] : [
         we(`w${w}-5`, exercises.deadlift, 1, { sets: dl.sets, reps: dl.reps, target_weight_kg: dl.wt, notes: dl.note }),
-        we(`w${w}-5`, exercises.front_squat, 2, { sets: 3, reps: '4', notes: 'Light — save for test' }),
-        we(`w${w}-5`, exercises.sled_push, 3, { sets: 3, notes: 'Race distance, moderate effort' }),
+        we(`w${w}-5`, exercises.front_squat, 2, { sets: 3, reps: '4', notes: 'Licht — spaar voor test' }),
+        we(`w${w}-5`, exercises.sled_push, 3, { sets: 3, notes: 'Race distance, matige effort' }),
         we(`w${w}-5`, exercises.sled_pull, 4, { sets: 3 }),
+        we(`w${w}-5`, exercises.burpee_broad, 5, { sets: 1, distance_meters: 80, notes: '80m for time — doel: sub 5:30' }),
       ],
     },
-    // Saturday - Hyrox Simulation
+    // ── ZA: Hyrox Sim ──
     {
       id: `w${w}-6`, program_id: 'p2', week_number: w, day_number: 6,
-      name: isTest ? '8km Time Trial' : '6-Station Hyrox Sim',
-      focus: isTest ? 'Time Trial — Sub 34 min' : 'Multi-Station Simulation',
-      notes: isTest ? 'Week 20 alternative: 8km time trial if not done Tuesday.' : '6-station sim — race tempo.',
+      name: isTest ? 'Easy Recovery' : '6-Station Hyrox Sim',
+      focus: isTest ? 'Herstel na test week' : 'Multi-Station Simulatie',
+      notes: isTest ? 'Herstel na test week.' : '6-station sim — race tempo. Noteer alle splits.',
       workout_exercises: isTest ? [
-        we(`w${w}-6`, exercises.running, 1, { sets: 1, duration_seconds: 1800, notes: 'Easy 30 min — recovery after test week' }),
+        we(`w${w}-6`, exercises.running, 1, { sets: 1, duration_seconds: 1800, notes: 'Easy 30 min — herstel na test week' }),
       ] : [
-        we(`w${w}-6`, exercises.running, 1, { sets: 6, distance_meters: 1000, notes: '6× 1km between stations' }),
+        we(`w${w}-6`, exercises.running, 1, { sets: 6, distance_meters: 1000, notes: '6× 1km tussen stations' }),
         we(`w${w}-6`, exercises.skierg, 2, { sets: 1, distance_meters: 1000 }),
         we(`w${w}-6`, exercises.sled_push, 3, { sets: 1, distance_meters: 50 }),
         we(`w${w}-6`, exercises.rowerg, 4, { sets: 1, distance_meters: 1000 }),
