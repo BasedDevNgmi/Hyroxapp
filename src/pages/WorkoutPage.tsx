@@ -313,7 +313,7 @@ export default function WorkoutPage() {
   const { workoutId } = useParams()
   const navigate = useNavigate()
   const { workout, loading: workoutLoading } = useWorkout(workoutId)
-  const { saveWorkoutLog, saveDraft, loadDraft, saving } = useWorkoutLog(workoutId || '')
+  const { saveWorkoutLog, saveDraft, loadDraft, clearDraft, saving } = useWorkoutLog(workoutId || '')
 
   const startTimeRef = useRef(new Date())
   const [kneePain, setKneePain] = useState(1)
@@ -332,7 +332,14 @@ export default function WorkoutPage() {
   useEffect(() => {
     if (!workout) return
     const draft = loadDraft()
-    if (draft) { setKneePain(draft.knee_pain_level); setRpe(draft.overall_rpe); setNotes(draft.notes); setExerciseLogs(draft.exercise_logs); return }
+    if (draft) {
+      // Validate draft matches current workout structure — discard stale drafts
+      const currentWeIds = new Set(workout.workout_exercises.map(we => we.id))
+      const draftWeIds = new Set(draft.exercise_logs.map(el => el.workout_exercise_id))
+      const isValid = draftWeIds.size > 0 && [...draftWeIds].every(id => currentWeIds.has(id))
+      if (isValid) { setKneePain(draft.knee_pain_level); setRpe(draft.overall_rpe); setNotes(draft.notes); setExerciseLogs(draft.exercise_logs); return }
+      clearDraft()
+    }
 
     // Build last-logged values per exercise_id from past workout history
     const allWEs = allWorkouts.flatMap(w => w.workout_exercises.map(we => ({ id: we.id, exercise_id: we.exercise_id })))
