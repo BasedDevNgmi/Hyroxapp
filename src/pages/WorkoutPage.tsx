@@ -273,9 +273,12 @@ function fmtTime(s: number) {
 
 /**
  * Determine what inputs an exercise needs based on its data fields.
- * Returns: 'weight_reps' | 'time' | 'distance' | 'check_only'
+ * Returns: 'weight_reps' | 'reps_only' | 'time' | 'distance' | 'check_only'
  */
-function getExerciseInputType(we: { reps: string | null; target_weight_kg: number | null; duration_seconds: number | null; distance_meters: number | null }): string {
+function getExerciseInputType(we: { reps: string | null; target_weight_kg: number | null; duration_seconds: number | null; distance_meters: number | null; input_type?: string }): string {
+  // Explicit override from workout data takes priority
+  if (we.input_type) return we.input_type
+
   const reps = we.reps?.trim() ?? ''
   const hasNumericReps = /^\d+/.test(reps)
   const isMaxHold = /max\s*hold/i.test(reps)
@@ -361,7 +364,7 @@ export default function WorkoutPage() {
           workout_exercise_id: we.id,
           set_number: s,
           weight_kg: inputType === 'weight_reps' ? (targetWeight ?? prev?.weight_kg ?? 0) : null,
-          reps_completed: inputType === 'weight_reps' ? (targetReps ?? prev?.reps_completed ?? 0) : null,
+          reps_completed: (inputType === 'weight_reps' || inputType === 'reps_only') ? (targetReps ?? prev?.reps_completed ?? 0) : null,
           time_seconds: (inputType === 'time' || inputType === 'distance') ? (targetTime ?? prev?.time_seconds ?? 0) : null,
           completed: false,
           notes: '',
@@ -585,6 +588,9 @@ export default function WorkoutPage() {
                                   <Stepper value={set.weight_kg ?? 0} onChange={v => updateSet(we.id, set.set_number, { weight_kg: v })} step={2.5} label="kg" min={0} />
                                   <Stepper value={set.reps_completed ?? 0} onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })} step={1} label="reps" min={0} />
                                 </>
+                              )}
+                              {inputType === 'reps_only' && (
+                                <Stepper value={set.reps_completed ?? 0} onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })} step={1} label="reps" min={0} />
                               )}
                               {(inputType === 'time' || inputType === 'distance') && (
                                 <Stepper value={set.time_seconds ?? 0} onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })} step={5} label="sec" min={0} />

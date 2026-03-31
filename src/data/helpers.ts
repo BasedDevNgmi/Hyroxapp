@@ -27,6 +27,7 @@ export function we(
     distance_meters: opts.distance_meters ?? null,
     notes: opts.notes ?? null,
     exercise,
+    ...(opts.input_type ? { input_type: opts.input_type } : {}),
   }
 }
 

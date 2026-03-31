@@ -15,6 +15,8 @@ export interface Exercise {
   video_url: string | null
 }
 
+export type ExerciseInputType = 'weight_reps' | 'reps_only' | 'time' | 'distance' | 'check_only'
+
 export interface WorkoutExercise {
   id: string
   workout_id: string
@@ -29,6 +31,7 @@ export interface WorkoutExercise {
   distance_meters: number | null
   notes: string | null
   exercise: Exercise
+  input_type?: ExerciseInputType
 }
 
 export interface Workout {
