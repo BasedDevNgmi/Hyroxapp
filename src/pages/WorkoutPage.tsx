@@ -276,28 +276,26 @@ function fmtTime(s: number) {
 }
 
 /**
- * Determine what inputs an exercise needs based on its data fields.
- * Returns: 'weight_reps' | 'reps_only' | 'time' | 'distance' | 'check_only'
+ * Determine what inputs to show when logging a set.
+ * Priority: workout-level input_type override → exercise log config → legacy auto-detection
  */
-function getExerciseInputType(we: { reps: string | null; target_weight_kg: number | null; duration_seconds: number | null; distance_meters: number | null; input_type?: string }): string {
-  // Explicit override from workout data takes priority
+function getExerciseInputType(we: {
+  reps: string | null
+  duration_seconds: number | null
+  distance_meters: number | null
+  input_type?: string
+  exercise?: { log?: { type?: string } }
+}): string {
+  // 1. Per-workout override (explicit in phase data)
   if (we.input_type) return we.input_type
-
+  // 2. Exercise-level config (central database)
+  if (we.exercise?.log?.type) return we.exercise.log.type
+  // 3. Legacy auto-detection fallback (for any exercises without log config)
   const reps = we.reps?.trim() ?? ''
-  const hasNumericReps = /^\d+/.test(reps)
-  const isMaxHold = /max\s*hold/i.test(reps)
-  const isMax = /^max$/i.test(reps)
-  const hasTime = we.duration_seconds != null && we.duration_seconds > 0
-  const hasDistance = we.distance_meters != null && we.distance_meters > 0
-
-  // "Max hold" → log duration (seconds held)
-  if (isMaxHold) return 'time'
-  // Numeric reps → always show weight + reps
-  if (hasNumericReps) return 'weight_reps'
-  // "Max" reps → show weight + reps (e.g. pull-ups max, towel pull-ups max)
-  if (isMax) return 'weight_reps'
-  if (hasTime) return 'time'
-  if (hasDistance) return 'distance'
+  if (/max\s*hold/i.test(reps)) return 'time'
+  if (/^\d+/.test(reps) || /^max$/i.test(reps)) return 'weight_reps'
+  if (we.duration_seconds) return 'time'
+  if (we.distance_meters) return 'distance'
   return 'check_only'
 }
 
@@ -594,6 +592,8 @@ export default function WorkoutPage() {
               const allDone = sets.length > 0 && completedSets === sets.length
               const isCollapsed = collapsedExercises.has(we.id)
               const inputType = getExerciseInputType(we)
+              const weightStep = (we.exercise as { log?: { weight_step?: number } })?.log?.weight_step ?? 2.5
+              const timeStep  = (we.exercise as { log?: { time_step?: number  } })?.log?.time_step  ?? 5
               const isCurrent = we.id === currentExerciseId
               const firstIncompleteSet = sets.find(s => !s.completed)?.set_number
 
@@ -642,7 +642,7 @@ export default function WorkoutPage() {
                             <div className="flex items-center gap-1.5 flex-1 min-w-0">
                               {inputType === 'weight_reps' && (
                                 <>
-                                  <Stepper value={set.weight_kg ?? 0} onChange={v => updateSet(we.id, set.set_number, { weight_kg: v })} step={2.5} label="kg" min={0} />
+                                  <Stepper value={set.weight_kg ?? 0} onChange={v => updateSet(we.id, set.set_number, { weight_kg: v })} step={weightStep} label="kg" min={0} />
                                   <Stepper value={set.reps_completed ?? 0} onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })} step={1} label="reps" min={0} />
                                 </>
                               )}
@@ -650,7 +650,7 @@ export default function WorkoutPage() {
                                 <Stepper value={set.reps_completed ?? 0} onChange={v => updateSet(we.id, set.set_number, { reps_completed: v })} step={1} label="reps" min={0} />
                               )}
                               {(inputType === 'time' || inputType === 'distance') && (
-                                <Stepper value={set.time_seconds ?? 0} onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })} step={5} label="sec" min={0} />
+                                <Stepper value={set.time_seconds ?? 0} onChange={v => updateSet(we.id, set.set_number, { time_seconds: v })} step={timeStep} label="sec" min={0} />
                               )}
                               {inputType === 'check_only' && (
                                 <div className="flex-1 text-[11px] text-muted-foreground px-2">{we.reps || 'Complete'}</div>

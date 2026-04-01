@@ -7,12 +7,23 @@ import {
   getWorkoutByWeekDay,
 } from '@/data/program'
 
+export interface ExerciseLogConfig {
+  /** How to log this exercise */
+  type: ExerciseInputType
+  /** kg increment for weight stepper (0 = no weight field) */
+  weight_step: number
+  /** seconds increment for time stepper (0 = no time field) */
+  time_step: number
+}
+
 export interface Exercise {
   id: string
   name: string
   category: string
   description: string | null
   video_url: string | null
+  /** Central logging config — source of truth for input type and stepper increments */
+  log: ExerciseLogConfig
 }
 
 export type ExerciseInputType = 'weight_reps' | 'reps_only' | 'time' | 'distance' | 'check_only'
