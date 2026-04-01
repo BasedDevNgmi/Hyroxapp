@@ -17,6 +17,8 @@ import {
   Minus,
   Plus,
   Heart,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react'
 import { PREHAB_ITEMS } from '@/data/helpers'
 
@@ -237,8 +239,10 @@ function Stepper({ value, onChange, step, label, min: minVal }: {
   useEffect(() => () => stopRepeat(), [])
 
   // The onChange receives a function but we pass the new value — fix: compute directly
-  const decrement = () => { const next = +(value - step).toFixed(1); onChange(Math.max(minVal ?? 0, next)); navigator.vibrate?.(10) }
-  const increment = () => { onChange(+(value + step).toFixed(1)); navigator.vibrate?.(10) }
+  // Use integer arithmetic to avoid floating-point drift (e.g. 2.5kg steps)
+  const round = (v: number) => Math.round(v * 10) / 10
+  const decrement = () => { onChange(Math.max(minVal ?? 0, round(value - step))); navigator.vibrate?.(10) }
+  const increment = () => { onChange(round(value + step)); navigator.vibrate?.(10) }
 
   const startDec = () => { decrement(); timeoutRef.current = setTimeout(() => { intervalRef.current = setInterval(decrement, 80) }, 350) }
   const startInc = () => { increment(); timeoutRef.current = setTimeout(() => { intervalRef.current = setInterval(increment, 80) }, 350) }
@@ -328,6 +332,11 @@ export default function WorkoutPage() {
   const [animatingSetKey, setAnimatingSetKey] = useState<string | null>(null)
   const [showCompletionSheet, setShowCompletionSheet] = useState(false)
   const [collapsedExercises, setCollapsedExercises] = useState<Set<string>>(new Set())
+  // Tracks sets the user manually edited (key = `${weId}-${setNum}`) — auto-fill skips these
+  const [manuallyEdited, setManuallyEdited] = useState<Set<string>>(new Set())
+  // Undo toast: stores the previous logs + the set key that was just completed
+  const [undoState, setUndoState] = useState<{ logs: ExerciseLogDraft[]; key: string } | null>(null)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const exerciseRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -387,6 +396,7 @@ export default function WorkoutPage() {
 
   const updateSet = (weId: string, setNum: number, updates: Partial<ExerciseLogDraft>) => {
     setExerciseLogs(prev => prev.map(el => el.workout_exercise_id === weId && el.set_number === setNum ? { ...el, ...updates } : el))
+    setManuallyEdited(prev => new Set(prev).add(`${weId}-${setNum}`))
   }
 
   const autoAdvance = useCallback((updatedLogs: ExerciseLogDraft[], weId: string) => {
@@ -418,14 +428,20 @@ export default function WorkoutPage() {
       const updated = prev.map(el => el.workout_exercise_id === weId && el.set_number === setNum ? { ...el, completed: !el.completed } : el)
       const just = updated.find(el => el.workout_exercise_id === weId && el.set_number === setNum)
       if (just?.completed) {
-        // Copy weight/reps to remaining uncompleted sets of this exercise
+        // Save snapshot for undo (before auto-fill)
+        setUndoState({ logs: prev, key: `${weId}-${setNum}` })
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+        undoTimerRef.current = setTimeout(() => setUndoState(null), 4000)
+
+        // Copy weight/reps to remaining uncompleted sets — skip manually edited ones
         const filled = updated.map(el => {
           if (el.workout_exercise_id !== weId || el.completed || el.set_number <= setNum) return el
+          if (manuallyEdited.has(`${weId}-${el.set_number}`)) return el  // user already set this
           return {
             ...el,
-            weight_kg: just.weight_kg != null && (el.weight_kg == null || el.weight_kg === 0) ? just.weight_kg : el.weight_kg,
-            reps_completed: just.reps_completed != null && (el.reps_completed == null || el.reps_completed === 0) ? just.reps_completed : el.reps_completed,
-            time_seconds: just.time_seconds != null && (el.time_seconds == null || el.time_seconds === 0) ? just.time_seconds : el.time_seconds,
+            weight_kg: just.weight_kg != null ? just.weight_kg : el.weight_kg,
+            reps_completed: just.reps_completed != null ? just.reps_completed : el.reps_completed,
+            time_seconds: just.time_seconds != null ? just.time_seconds : el.time_seconds,
           }
         })
         navigator.vibrate?.(30)
@@ -433,15 +449,30 @@ export default function WorkoutPage() {
         setTimeout(() => setAnimatingSetKey(null), 300)
         if (workout) {
           const we = workout.workout_exercises.find(w => w.id === weId)
-          if (we?.rest_seconds && we.rest_seconds > 0) setRestTimer(we.rest_seconds)
-          else if ((we?.exercise as { category: string } | undefined)?.category === 'strength') setRestTimer(90)
+          if (we?.rest_seconds && we.rest_seconds > 0) {
+            setRestTimer(we.rest_seconds)
+          } else {
+            const cat = (we?.exercise as { category: string } | undefined)?.category
+            // Rest defaults by category: heavy compounds need most, accessories less
+            const defaultRest: Record<string, number> = {
+              strength: 120,     // main lifts (squat, bench, deadlift, row)
+              grip: 90,          // grip work needs recovery
+              hyrox_specific: 90,// sled/carry/burpees
+              cardio: 60,        // intervals
+              arms: 60,          // curls, dips, pushdowns
+              core: 45,          // ab work
+              prehab: 0,         // no timer for warm-up drills
+            }
+            const rest = cat ? (defaultRest[cat] ?? 60) : 60
+            if (rest > 0) setRestTimer(rest)
+          }
         }
         setTimeout(() => autoAdvance(filled, weId), 400)
         return filled
       }
       return updated
     })
-  }, [workout, autoAdvance])
+  }, [workout, autoAdvance, manuallyEdited])
 
   const handleSave = async () => {
     if (!workoutId) return
@@ -516,6 +547,21 @@ export default function WorkoutPage() {
               <h1 className="text-base font-semibold truncate">{workout.name}</h1>
               <p className="text-[11px] text-muted-foreground">{workout.focus}</p>
             </div>
+            <button
+              onClick={() => {
+                if (confirm('Reset workout? All progress will be lost.')) {
+                  clearDraft()
+                  setExerciseLogs([])
+                  setManuallyEdited(new Set())
+                  setUndoState(null)
+                  navigate(-1)
+                }
+              }}
+              className="p-2.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-xl transition-colors"
+              title="Reset workout"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
             <SessionTimer startTime={startTimeRef.current} />
           </div>
           <div className="mt-3">
@@ -649,6 +695,25 @@ export default function WorkoutPage() {
           onSave={handleSave} onCancel={() => setShowCompletionSheet(false)}
           saving={saving}
         />
+      )}
+
+      {/* ─── UNDO TOAST ─── */}
+      {undoState && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center gap-3 bg-foreground text-background px-4 py-3 rounded-2xl shadow-xl text-sm font-medium">
+            <span>Set afgevinkt</span>
+            <button
+              onClick={() => {
+                setExerciseLogs(undoState.logs)
+                setUndoState(null)
+                if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+              }}
+              className="flex items-center gap-1.5 text-primary font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Undo
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

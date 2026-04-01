@@ -96,10 +96,15 @@ export function useWorkoutLog(workoutId: string) {
     logs.unshift(workoutLog)
     saveLogs(logs)
 
+    // Resolve exercise_id (stable across weeks) from program data
+    const { allWorkouts } = await import('@/data/program')
+    const weToExerciseId = new Map(allWorkouts.flatMap(w => w.workout_exercises.map(we => [we.id, we.exercise_id])))
+
     const exerciseLogs = draft.exercise_logs.map(el => ({
       id: crypto.randomUUID(),
       workout_log_id: workoutLog.id,
       workout_exercise_id: el.workout_exercise_id,
+      exercise_id: weToExerciseId.get(el.workout_exercise_id) ?? el.workout_exercise_id,
       set_number: el.set_number,
       weight_kg: el.weight_kg,
       reps_completed: el.reps_completed,
