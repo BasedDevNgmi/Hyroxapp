@@ -418,6 +418,16 @@ export default function WorkoutPage() {
       const updated = prev.map(el => el.workout_exercise_id === weId && el.set_number === setNum ? { ...el, completed: !el.completed } : el)
       const just = updated.find(el => el.workout_exercise_id === weId && el.set_number === setNum)
       if (just?.completed) {
+        // Copy weight/reps to remaining uncompleted sets of this exercise
+        const filled = updated.map(el => {
+          if (el.workout_exercise_id !== weId || el.completed || el.set_number <= setNum) return el
+          return {
+            ...el,
+            weight_kg: just.weight_kg != null && (el.weight_kg == null || el.weight_kg === 0) ? just.weight_kg : el.weight_kg,
+            reps_completed: just.reps_completed != null && (el.reps_completed == null || el.reps_completed === 0) ? just.reps_completed : el.reps_completed,
+            time_seconds: just.time_seconds != null && (el.time_seconds == null || el.time_seconds === 0) ? just.time_seconds : el.time_seconds,
+          }
+        })
         navigator.vibrate?.(30)
         setAnimatingSetKey(`${weId}-${setNum}`)
         setTimeout(() => setAnimatingSetKey(null), 300)
@@ -426,7 +436,8 @@ export default function WorkoutPage() {
           if (we?.rest_seconds && we.rest_seconds > 0) setRestTimer(we.rest_seconds)
           else if ((we?.exercise as { category: string } | undefined)?.category === 'strength') setRestTimer(90)
         }
-        setTimeout(() => autoAdvance(updated, weId), 400)
+        setTimeout(() => autoAdvance(filled, weId), 400)
+        return filled
       }
       return updated
     })
