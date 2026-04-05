@@ -79,8 +79,8 @@ export function useWorkout(workoutId: string | undefined) {
 }
 
 const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
-// Training days: Mon(1), Tue(2), Wed(3), Fri(5), Sat(6). Thu(4) and Sun(7) are rest.
-const TRAINING_DAYS = new Set([1, 2, 3, 5, 6])
+// Training days: Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6). Sun(7) is rest.
+const TRAINING_DAYS = new Set([1, 2, 3, 4, 5, 6])
 
 export { DAY_NAMES, TRAINING_DAYS }
 
