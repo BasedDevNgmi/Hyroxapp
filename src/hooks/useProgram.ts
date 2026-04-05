@@ -74,8 +74,23 @@ export function useWorkoutsForWeek(weekNumber: number) {
 }
 
 export function useWorkout(workoutId: string | undefined) {
-  const workout = workoutId ? getWorkoutById(workoutId) : null
-  return { workout, loading: false }
+  if (!workoutId) return { workout: null, loading: false }
+  // Check static program first
+  const staticWorkout = getWorkoutById(workoutId)
+  if (staticWorkout) return { workout: staticWorkout, loading: false }
+  // Check AI workout cache for ai-* IDs
+  if (workoutId.startsWith('ai-')) {
+    try {
+      const raw = localStorage.getItem('hyrox_ai_workouts')
+      if (raw) {
+        const cache = JSON.parse(raw) as Record<string, { workout: Workout }>
+        for (const entry of Object.values(cache)) {
+          if (entry.workout.id === workoutId) return { workout: entry.workout, loading: false }
+        }
+      }
+    } catch { /* ignore parse errors */ }
+  }
+  return { workout: null, loading: false }
 }
 
 const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const

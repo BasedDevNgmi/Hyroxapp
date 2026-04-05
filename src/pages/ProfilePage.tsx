@@ -10,6 +10,8 @@ import {
   Check,
   Target,
   RotateCcw,
+  Sparkles,
+  Heart,
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -22,6 +24,9 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false)
   const [rmSaving, setRmSaving] = useState(false)
   const [rmSaved, setRmSaved] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(() => localStorage.getItem('hyrox_ai_enabled') === 'true')
+  const [healthData, setHealthData] = useState<{ sleep_hours: string; hrv_sdnn: string; resting_hr: string }>({ sleep_hours: '', hrv_sdnn: '', resting_hr: '' })
+  const [healthSaved, setHealthSaved] = useState(false)
 
   const [squat1rm, setSquat1rm] = useState<string>('')
   const [dl1rm, setDl1rm] = useState<string>('')
@@ -74,6 +79,8 @@ export default function ProfilePage() {
       profile,
       workout_logs: logs,
       exercise_logs: JSON.parse(localStorage.getItem('hyrox_exercise_logs') || '[]'),
+      health_data: JSON.parse(localStorage.getItem('hyrox_health_data') || '[]'),
+      ai_enabled: localStorage.getItem('hyrox_ai_enabled') === 'true',
       exported_at: new Date().toISOString(),
     }
     const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' })
@@ -103,6 +110,12 @@ export default function ProfilePage() {
         }
         if (data.exercise_logs) {
           localStorage.setItem('hyrox_exercise_logs', JSON.stringify(data.exercise_logs))
+        }
+        if (data.health_data) {
+          localStorage.setItem('hyrox_health_data', JSON.stringify(data.health_data))
+        }
+        if (data.ai_enabled !== undefined) {
+          localStorage.setItem('hyrox_ai_enabled', String(data.ai_enabled))
         }
         window.location.reload()
       } catch {
@@ -196,6 +209,91 @@ export default function ProfilePage() {
           className="w-full flex items-center justify-center gap-2 h-10 bg-secondary rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
           <RotateCcw className="w-3.5 h-3.5" /> Reset to Today (Week 1)
         </button>
+      </div>
+
+      {/* AI Workouts */}
+      <div className="bg-card rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-violet-400" />
+          <span className="text-sm font-semibold">AI Workouts</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Uses Claude AI to personalize your daily workout based on recovery, performance, and training phase.
+        </p>
+        <button
+          onClick={() => {
+            const next = !aiEnabled
+            localStorage.setItem('hyrox_ai_enabled', String(next))
+            setAiEnabled(next)
+          }}
+          className={`w-full h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+            aiEnabled
+              ? 'bg-violet-500/15 text-violet-400 border border-violet-500/20'
+              : 'bg-secondary text-muted-foreground'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          {aiEnabled ? 'AI Enabled' : 'Enable AI Workouts'}
+        </button>
+        {aiEnabled && (
+          <p className="text-[10px] text-muted-foreground">
+            A "Personalize with AI" button will appear on the dashboard for each workout.
+            Requires ANTHROPIC_API_KEY configured on Vercel.
+          </p>
+        )}
+      </div>
+
+      {/* Apple Health */}
+      <div className="bg-card rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Heart className="w-4 h-4 text-red-400" />
+          <span className="text-sm font-semibold">Recovery Data</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Manually enter today's recovery metrics. AI workouts will use this to adjust intensity.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Sleep (hrs)', value: healthData.sleep_hours, key: 'sleep_hours' as const, ph: '7.5' },
+            { label: 'HRV (ms)', value: healthData.hrv_sdnn, key: 'hrv_sdnn' as const, ph: '45' },
+            { label: 'RHR (bpm)', value: healthData.resting_hr, key: 'resting_hr' as const, ph: '52' },
+          ].map(item => (
+            <div key={item.label}>
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">{item.label}</label>
+              <input
+                type="number" inputMode="decimal" value={item.value}
+                onChange={e => setHealthData(prev => ({ ...prev, [item.key]: e.target.value }))}
+                placeholder={item.ph}
+                className="w-full h-11 px-3 bg-background border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            const today = new Date().toISOString().slice(0, 10)
+            const entry = {
+              date: today,
+              sleep_hours: healthData.sleep_hours ? Number(healthData.sleep_hours) : null,
+              hrv_sdnn: healthData.hrv_sdnn ? Number(healthData.hrv_sdnn) : null,
+              resting_hr: healthData.resting_hr ? Number(healthData.resting_hr) : null,
+              active_calories: null,
+            }
+            const existing = JSON.parse(localStorage.getItem('hyrox_health_data') || '[]')
+            // Replace today's entry or add new
+            const filtered = existing.filter((e: { date: string }) => e.date !== today)
+            filtered.unshift(entry)
+            localStorage.setItem('hyrox_health_data', JSON.stringify(filtered.slice(0, 30)))
+            setHealthSaved(true)
+            setTimeout(() => setHealthSaved(false), 2000)
+          }}
+          className="w-full h-11 bg-primary text-primary-foreground rounded-xl text-sm font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+        >
+          {healthSaved ? <><Check className="w-4 h-4" /> Saved</> : 'Save Recovery Data'}
+        </button>
+        <p className="text-[10px] text-muted-foreground">
+          For auto-sync, use the "Health Auto Export" iOS app pointed at your Vercel endpoint.
+        </p>
       </div>
 
       {/* Data Management */}

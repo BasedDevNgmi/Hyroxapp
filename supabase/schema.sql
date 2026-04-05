@@ -252,3 +252,18 @@ create policy "Users can update own PRs"
 
 create index idx_personal_records_user on public.personal_records(user_id);
 create index idx_personal_records_exercise on public.personal_records(exercise_id);
+
+-- ============================================
+-- HEALTH_METRICS (Apple Health data via webhook)
+-- ============================================
+create table public.health_metrics (
+  id uuid primary key default uuid_generate_v4(),
+  date date not null unique,
+  sleep_hours numeric(4,2),
+  hrv_sdnn numeric(6,2),
+  resting_hr integer,
+  active_calories integer,
+  created_at timestamptz default now() not null
+);
+
+create index idx_health_metrics_date on public.health_metrics(date desc);

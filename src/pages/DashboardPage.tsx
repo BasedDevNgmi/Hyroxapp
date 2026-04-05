@@ -4,6 +4,7 @@ import { useProfile } from '@/hooks/useProfile'
 import { useWorkoutLogs } from '@/hooks/useWorkoutLog'
 import { getWorkoutByWeekDay } from '@/data/program'
 import type { Workout } from '@/hooks/useProgram'
+import { useAIWorkout } from '@/hooks/useAIWorkout'
 import {
   Play,
   CheckCircle2,
@@ -13,6 +14,8 @@ import {
   Clock,
   Eye,
   Moon,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react'
 import {
   startOfWeek,
@@ -72,8 +75,6 @@ export default function DashboardPage() {
     return getWorkoutForDate(selectedDate, programStart)
   }, [selectedDate, programStart])
 
-  const selectedCompleted = selectedWorkout ? completedIds.has(selectedWorkout.id) : false
-
   // Week number for selected date
   const selectedWeekNumber = useMemo(() => {
     if (!programStart) return 0
@@ -81,6 +82,19 @@ export default function DashboardPage() {
     if (diff < 0) return 0
     return Math.floor(diff / 7) + 1
   }, [selectedDate, programStart])
+
+  // AI workout
+  const selectedDayNumber = useMemo(() => {
+    const jsDay = selectedDate.getDay()
+    return jsDay === 0 ? 7 : jsDay
+  }, [selectedDate])
+  const { aiWorkout, generating, error: aiError, generate, isAIEnabled } = useAIWorkout(selectedWeekNumber, selectedDayNumber)
+  const [showAI, setShowAI] = useState(true)
+
+  // The active workout: AI if enabled + available + user wants it, else static
+  const activeWorkout = (isAIEnabled && showAI && aiWorkout) ? aiWorkout : selectedWorkout
+  const isAIActive = activeWorkout !== selectedWorkout && activeWorkout !== null
+  const selectedCompleted = activeWorkout ? completedIds.has(activeWorkout.id) : false
 
   const phase = selectedWeekNumber > 0 && selectedWeekNumber <= 42 ? getPhaseInfo(selectedWeekNumber) : null
 
@@ -91,18 +105,18 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const exerciseCount = selectedWorkout?.workout_exercises.length ?? 0
+  const exerciseCount = activeWorkout?.workout_exercises.length ?? 0
   const estimatedMinutes = exerciseCount > 0 ? Math.round(exerciseCount * 6 + 10) : 0
 
   // Exercise completion from localStorage
   const exerciseCompletionMap = useMemo(() => {
-    if (!selectedWorkout) return new Map<string, boolean>()
+    if (!activeWorkout) return new Map<string, boolean>()
     const raw = localStorage.getItem('hyrox_exercise_logs')
     if (!raw) return new Map<string, boolean>()
     try {
       const allLogs = JSON.parse(raw) as { workout_exercise_id: string; completed: boolean }[]
       const map = new Map<string, boolean>()
-      for (const we of selectedWorkout.workout_exercises) {
+      for (const we of activeWorkout.workout_exercises) {
         const weLogs = allLogs.filter(l => l.workout_exercise_id === we.id)
         const allDone = weLogs.length >= we.sets && weLogs.every(l => l.completed)
         map.set(we.id, allDone)
@@ -111,7 +125,7 @@ export default function DashboardPage() {
     } catch {
       return new Map<string, boolean>()
     }
-  }, [selectedWorkout])
+  }, [activeWorkout])
 
   if (profileLoading) {
     return (
@@ -227,13 +241,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Workout Content */}
-      {selectedWorkout ? (
+      {(activeWorkout || selectedWorkout) ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold">{selectedWorkout.name}</h2>
-              {selectedWorkout.focus && (
-                <p className="text-xs text-muted-foreground mt-0.5">{selectedWorkout.focus}</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">{(activeWorkout || selectedWorkout)!.name}</h2>
+                {isAIActive && (
+                  <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400">AI</span>
+                )}
+              </div>
+              {(activeWorkout || selectedWorkout)!.focus && (
+                <p className="text-xs text-muted-foreground mt-0.5">{(activeWorkout || selectedWorkout)!.focus}</p>
               )}
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -241,6 +260,39 @@ export default function DashboardPage() {
               <span>~{estimatedMinutes}m</span>
             </div>
           </div>
+
+          {/* AI Controls */}
+          {isAIEnabled && selectedWorkout && (
+            <div className="flex items-center gap-2">
+              {!aiWorkout && !generating && (
+                <button
+                  onClick={() => generate(selectedWorkout, logs)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 text-violet-400 rounded-lg text-xs font-medium hover:bg-violet-500/20 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Personalize with AI
+                </button>
+              )}
+              {generating && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 text-violet-400 rounded-lg text-xs font-medium">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Generating...
+                </div>
+              )}
+              {aiWorkout && (
+                <button
+                  onClick={() => setShowAI(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  {showAI ? 'View Static' : 'View AI'}
+                </button>
+              )}
+              {aiError && (
+                <p className="text-[10px] text-destructive">{aiError}</p>
+              )}
+            </div>
+          )}
 
           {selectedCompleted && (
             <div className="flex items-center gap-2 px-3 py-2 bg-success/8 border border-success/15 rounded-lg">
@@ -251,14 +303,14 @@ export default function DashboardPage() {
 
           {/* Exercise List */}
           <div className="space-y-1.5">
-            {selectedWorkout.workout_exercises.map((we, idx) => {
+            {(activeWorkout || selectedWorkout)!.workout_exercises.map((we, idx) => {
               const exercise = we.exercise as { name: string; category: string }
               const isDone = exerciseCompletionMap.get(we.id) || false
 
               return (
                 <button
                   key={we.id}
-                  onClick={() => navigate(`/workout/${selectedWorkout.id}`)}
+                  onClick={() => navigate(`/workout/${(activeWorkout || selectedWorkout)!.id}`)}
                   className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left transition-colors ${
                     isDone ? 'bg-card/60' : 'bg-card hover:bg-card/80'
                   }`}
@@ -292,12 +344,12 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {selectedWorkout.notes && (
-            <p className="text-xs text-muted-foreground italic px-1">{selectedWorkout.notes}</p>
+          {(activeWorkout || selectedWorkout)!.notes && (
+            <p className="text-xs text-muted-foreground italic px-1">{(activeWorkout || selectedWorkout)!.notes}</p>
           )}
 
           <button
-            onClick={() => navigate(`/workout/${selectedWorkout.id}`)}
+            onClick={() => navigate(`/workout/${(activeWorkout || selectedWorkout)!.id}`)}
             className={`w-full py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
               selectedCompleted
                 ? 'bg-card border border-border text-muted-foreground hover:text-foreground'
@@ -311,7 +363,7 @@ export default function DashboardPage() {
             )}
           </button>
         </div>
-      ) : (
+      ) : !selectedWorkout ? (
         <div className="flex flex-col items-center justify-center py-16 space-y-3">
           <div className="w-12 h-12 rounded-full bg-card flex items-center justify-center">
             <Moon className="w-5 h-5 text-muted-foreground" />
@@ -319,7 +371,7 @@ export default function DashboardPage() {
           <p className="text-base font-medium text-muted-foreground">Rest Day</p>
           <p className="text-xs text-muted-foreground/60">Recover. You earned it.</p>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

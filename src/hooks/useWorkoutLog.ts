@@ -96,9 +96,22 @@ export function useWorkoutLog(workoutId: string) {
     logs.unshift(workoutLog)
     saveLogs(logs)
 
-    // Resolve exercise_id (stable across weeks) from program data
+    // Resolve exercise_id (stable across weeks) from program data + AI cache
     const { allWorkouts } = await import('@/data/program')
     const weToExerciseId = new Map(allWorkouts.flatMap(w => w.workout_exercises.map(we => [we.id, we.exercise_id])))
+
+    // Also check AI workout cache for ai-* workout exercise IDs
+    try {
+      const aiRaw = localStorage.getItem('hyrox_ai_workouts')
+      if (aiRaw) {
+        const aiCache = JSON.parse(aiRaw) as Record<string, { workout: { workout_exercises: { id: string; exercise_id: string }[] } }>
+        for (const entry of Object.values(aiCache)) {
+          for (const we of entry.workout.workout_exercises) {
+            weToExerciseId.set(we.id, we.exercise_id)
+          }
+        }
+      }
+    } catch { /* ignore */ }
 
     const exerciseLogs = draft.exercise_logs.map(el => ({
       id: crypto.randomUUID(),
